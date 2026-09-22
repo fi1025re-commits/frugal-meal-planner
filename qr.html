@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>スマホ実機確認 QRコード</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Zen Maru Gothic', sans-serif; }</style>
+</head>
+<body class="bg-gradient-to-tr from-sky-50 via-teal-50 to-lime-50 min-h-screen flex items-center justify-center p-4 text-slate-800">
+  <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-xl border border-sky-100">
+    <div class="w-14 h-14 mx-auto mb-4 bg-gradient-to-tr from-sky-400 via-teal-400 to-lime-300 text-white rounded-2xl flex items-center justify-center text-3xl shadow-md shadow-sky-200/50">
+      📱
+    </div>
+    <h1 class="text-xl font-black mb-1.5 text-slate-900">スマホで実機確認</h1>
+    <p class="text-xs text-slate-500 mb-5 font-bold leading-relaxed">
+      PCと同じWi-Fiに接続したスマホのカメラで<br>下記のQRコードをスキャンしてください。
+    </p>
+
+    <div class="bg-white p-4 rounded-2xl border-2 border-dashed border-sky-200 inline-block mb-4 shadow-xs">
+      <img id="qr-img" 
+           src="" 
+           alt="QRコード" 
+           class="w-48 h-48 mx-auto" 
+           onerror="this.parentElement.innerHTML='<p class=\'text-xs text-rose-500 font-bold p-4\'>QR画像生成中...<br>下のURLをスマホで直接入力してください。</p>'">
+    </div>
+
+    <div class="bg-sky-50/80 rounded-2xl p-3.5 mb-5 text-left border border-sky-100">
+      <span class="text-[11px] font-black text-sky-800 block mb-1">直接URLを入力する場合:</span>
+      <a id="direct-url-link" href="#" target="_blank" class="text-xs font-black text-teal-700 break-all underline hover:text-teal-900">
+        読み込み中...
+      </a>
+    </div>
+
+    <div class="space-y-2 text-left bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-[11px] text-slate-600 font-medium leading-relaxed">
+      <div class="font-bold text-slate-800 flex items-center gap-1">
+        <span>💡</span><span>つながらないときのチェック</span>
+      </div>
+      <p>・スマホが自宅のWi-Fiに接続されているか確認してください（4G/5G回線では繋がりません）</p>
+      <p>・Windowsの「ファイアウォール」で通信の許可が求められた場合は「アクセスを許可」を押してください</p>
+    </div>
+  </div>
+
+  <script>
+    const host = window.location.hostname;
+    const port = window.location.port || '8080';
+    // If hostname is localhost or 127.0.0.1, try fetching the server info or fall back to known IP
+    let targetHost = host === 'localhost' || host === '127.0.0.1' ? '192.168.3.181' : host;
+    const targetUrl = `http://${targetHost}:${port}/`;
+    
+    document.getElementById('direct-url-link').href = targetUrl;
+    document.getElementById('direct-url-link').textContent = targetUrl;
+    document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(targetUrl)}`;
+  </script>
+</body>
+</html>

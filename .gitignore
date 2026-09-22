@@ -1,0 +1,13 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Local server / scripts
+server.ps1
+アプリをブラウザで開く.vbs
+起動する.bat
+📱スマホで確認.bat
+食費節約アプリを開く.url
