@@ -262,7 +262,25 @@ function loadSavedState() {
     }
   }
 
-  if (!state.weeklyPlan || Object.keys(state.weeklyPlan).length === 0) {
+  // 献立データの完全性検証（7日分揃っているか、全レシピIDが存在するかチェック）
+  let isPlanValid = true;
+  if (!state.weeklyPlan || typeof state.weeklyPlan !== 'object' || Object.keys(state.weeklyPlan).length < 7) {
+    isPlanValid = false;
+  } else {
+    for (const day of DAYS_OF_WEEK) {
+      const d = state.weeklyPlan[day.id];
+      if (!d || !d.main || !d.side || !d.soup) {
+        isPlanValid = false;
+        break;
+      }
+      if (!getRecipeById(d.main) || !getRecipeById(d.side) || !getRecipeById(d.soup)) {
+        isPlanValid = false;
+        break;
+      }
+    }
+  }
+
+  if (!isPlanValid) {
     generateRandomWeeklyPlan(false);
   }
 }
@@ -1403,61 +1421,102 @@ const DAY_THEMES = {
 
 function renderWeeklyPlan() {
   const container = document.getElementById('weekly-plan-container');
-  if (!container || !state.weeklyPlan) return;
+  if (!container) return;
 
-  container.innerHTML = '';
+  // 献立プランが存在しないか壊れている場合は即座に自動生成
+  if (!state.weeklyPlan || typeof state.weeklyPlan !== 'object' || Object.keys(state.weeklyPlan).length < 7) {
+    generateRandomWeeklyPlan(false);
+    return;
+  }
 
-  DAYS_OF_WEEK.forEach((day) => {
-    const dayData = state.weeklyPlan[day.id];
-    if (!dayData) return;
+  try {
+    container.innerHTML = '';
 
-    const mainRecipe = getRecipeById(dayData.main);
-    const sideRecipe = getRecipeById(dayData.side);
-    const soupRecipe = getRecipeById(dayData.soup);
+    DAYS_OF_WEEK.forEach((day) => {
+      let dayData = state.weeklyPlan[day.id];
+      if (!dayData) {
+        dayData = { main: 'main_01', side: 'side_01', soup: 'soup_01' };
+        state.weeklyPlan[day.id] = dayData;
+      }
 
-    const isCooked = state.cookedDays.includes(day.id);
-    const theme = DAY_THEMES[day.id] || { name: day.name, bg: 'bg-slate-100 text-slate-800 border-slate-200' };
-    const dayBg = isCooked ? 'bg-emerald-100/90 text-emerald-900 border-emerald-300' : theme.bg;
+      let mainRecipe = getRecipeById(dayData.main);
+      let sideRecipe = getRecipeById(dayData.side);
+      let soupRecipe = getRecipeById(dayData.soup);
 
-    const dayCost = (mainRecipe ? mainRecipe.approxCostPerPerson : 0) +
-                    (sideRecipe ? sideRecipe.approxCostPerPerson : 0) +
-                    (soupRecipe ? soupRecipe.approxCostPerPerson : 0);
+      // 万一レシピが見つからない場合の安全フォールバック（画面が空になるのを防止）
+      if (!mainRecipe && Array.isArray(RECIPES_DATA) && RECIPES_DATA.length > 0) {
+        mainRecipe = RECIPES_DATA.find(r => r && r.category === 'main') || RECIPES_DATA[0];
+        dayData.main = mainRecipe.id;
+      }
+      if (!sideRecipe && Array.isArray(RECIPES_DATA) && RECIPES_DATA.length > 0) {
+        sideRecipe = RECIPES_DATA.find(r => r && r.category === 'side') || RECIPES_DATA[1];
+        dayData.side = sideRecipe.id;
+      }
+      if (!soupRecipe && Array.isArray(RECIPES_DATA) && RECIPES_DATA.length > 0) {
+        soupRecipe = RECIPES_DATA.find(r => r && r.category === 'soup') || RECIPES_DATA[2];
+        dayData.soup = soupRecipe.id;
+      }
 
-    const dayCard = document.createElement('div');
-    dayCard.className = `bg-white/95 rounded-3xl border-2 ${isCooked ? 'border-emerald-300 shadow-md ring-2 ring-emerald-200' : 'border-sky-100/90 shadow-sm hover:shadow-md hover:border-sky-200'} transition-all overflow-hidden flex flex-col`;
+      const isCooked = state.cookedDays.includes(day.id);
+      const theme = DAY_THEMES[day.id] || { name: day.name, bg: 'bg-slate-100 text-slate-800 border-slate-200' };
+      const dayBg = isCooked ? 'bg-emerald-100/90 text-emerald-900 border-emerald-300' : theme.bg;
 
-    const proteinText = mainRecipe && mainRecipe.proteinType ? PROTEIN_ICONS[mainRecipe.proteinType] || '' : '';
+      const dayCost = (mainRecipe ? mainRecipe.approxCostPerPerson : 0) +
+                      (sideRecipe ? sideRecipe.approxCostPerPerson : 0) +
+                      (soupRecipe ? soupRecipe.approxCostPerPerson : 0);
 
-    const isChecked = state.shoppingDays.includes(day.id);
-    dayCard.innerHTML = `
-      <div class="px-5 py-3 border-b border-sky-100 flex items-center justify-between flex-wrap gap-2 ${dayBg}">
-        <div class="flex items-center gap-2 flex-wrap">
-          <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-400 cursor-pointer" onchange="toggleShoppingDay('${day.id}')" title="買い物リストに含める">
-          <span class="text-base font-black">${theme.name}</span>
-          <span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-white/90 border border-current shadow-2xs">${state.servings}人分 約¥${dayCost * state.servings}</span>
-          ${proteinText ? `<span class="text-[11px] font-bold text-slate-700 bg-white/90 px-2 py-0.5 rounded-full border border-slate-200/80 shadow-2xs">${proteinText}</span>` : ''}
-          ${isCooked ? `<span class="text-[11px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">✅ 調理済 👏</span>` : ''}
+      const dayCard = document.createElement('div');
+      dayCard.className = `bg-white/95 rounded-3xl border-2 ${isCooked ? 'border-emerald-300 shadow-md ring-2 ring-emerald-200' : 'border-sky-100/90 shadow-sm hover:shadow-md hover:border-sky-200'} transition-all overflow-hidden flex flex-col`;
+
+      const proteinText = mainRecipe && mainRecipe.proteinType ? PROTEIN_ICONS[mainRecipe.proteinType] || '' : '';
+
+      const isChecked = state.shoppingDays.includes(day.id);
+      dayCard.innerHTML = `
+        <div class="px-5 py-3 border-b border-sky-100 flex items-center justify-between flex-wrap gap-2 ${dayBg}">
+          <div class="flex items-center gap-2 flex-wrap">
+            <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-400 cursor-pointer" onchange="toggleShoppingDay('${day.id}')" title="買い物リストに含める">
+            <span class="text-base font-black">${theme.name}</span>
+            <span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-white/90 border border-current shadow-2xs">${state.servings}人分 約¥${dayCost * state.servings}</span>
+            ${proteinText ? `<span class="text-[11px] font-bold text-slate-700 bg-white/90 px-2 py-0.5 rounded-full border border-slate-200/80 shadow-2xs">${proteinText}</span>` : ''}
+            ${isCooked ? `<span class="text-[11px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">✅ 調理済 👏</span>` : ''}
+          </div>
+          <div class="flex items-center gap-1.5 ml-auto">
+            <button onclick="toggleCookedDay('${day.id}')" class="text-xs flex items-center gap-1 font-black px-3 py-1.5 rounded-xl transition-all shadow-2xs active:scale-95 ${isCooked ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-white/90 text-teal-900 hover:bg-teal-50 hover:text-teal-950 border border-teal-200'}" title="作ったチェックで30日重複履歴に記録">
+              <i data-lucide="${isCooked ? 'check-circle' : 'utensils'}" class="w-3.5 h-3.5"></i>
+              <span>${isCooked ? '調理済' : '🍳 作った！'}</span>
+            </button>
+            <button onclick="shuffleDayMenu('${day.id}')" class="text-xs flex items-center gap-1 font-bold hover:opacity-75 transition-opacity px-2 py-1.5 rounded-xl bg-white/90 text-slate-600 shadow-2xs hover:bg-white" title="この日のメニューをランダム変更">
+              <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
         </div>
-        <div class="flex items-center gap-1.5 ml-auto">
-          <button onclick="toggleCookedDay('${day.id}')" class="text-xs flex items-center gap-1 font-black px-3 py-1.5 rounded-xl transition-all shadow-2xs active:scale-95 ${isCooked ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-white/90 text-teal-900 hover:bg-teal-50 hover:text-teal-950 border border-teal-200'}" title="作ったチェックで30日重複履歴に記録">
-            <i data-lucide="${isCooked ? 'check-circle' : 'utensils'}" class="w-3.5 h-3.5"></i>
-            <span>${isCooked ? '調理済' : '🍳 作った！'}</span>
-          </button>
-          <button onclick="shuffleDayMenu('${day.id}')" class="text-xs flex items-center gap-1 font-bold hover:opacity-75 transition-opacity px-2 py-1.5 rounded-xl bg-white/90 text-slate-600 shadow-2xs hover:bg-white" title="この日のメニューをランダム変更">
-            <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+
+        <div class="p-4 flex-1 flex flex-col gap-2.5 ${isCooked ? 'bg-emerald-50/20' : ''}">
+          ${renderDishRow(day.id, 'main', mainRecipe, '主菜')}
+          ${renderDishRow(day.id, 'side', sideRecipe, '副菜')}
+          ${renderDishRow(day.id, 'soup', soupRecipe, '汁物')}
+        </div>
+      `;
+
+      container.appendChild(dayCard);
+    });
+
+    if (container.children.length === 0) {
+      container.innerHTML = `
+        <div class="col-span-full text-center py-12 bg-white rounded-3xl border border-sky-100 p-8 shadow-xs">
+          <span class="text-4xl block mb-2">🍳</span>
+          <h3 class="font-bold text-slate-800 text-base mb-1">節約献立を作成しましょう</h3>
+          <p class="text-xs text-slate-500 mb-4">目標予算に合わせてバランスの良い1週間分の献立を作成します。</p>
+          <button onclick="generateRandomWeeklyPlan(true)" class="px-6 py-2.5 rounded-2xl text-xs font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 shadow-md active:scale-95 cursor-pointer">
+            ✨ 献立を生成する
           </button>
         </div>
-      </div>
-
-      <div class="p-4 flex-1 flex flex-col gap-2.5 ${isCooked ? 'bg-emerald-50/20' : ''}">
-        ${renderDishRow(day.id, 'main', mainRecipe, '主菜')}
-        ${renderDishRow(day.id, 'side', sideRecipe, '副菜')}
-        ${renderDishRow(day.id, 'soup', soupRecipe, '汁物')}
-      </div>
-    `;
-
-    container.appendChild(dayCard);
-  });
+      `;
+    }
+  } catch (err) {
+    console.error('renderWeeklyPlan error:', err);
+    generateRandomWeeklyPlan(false);
+  }
 
   safeCreateIcons();
 }
@@ -1477,29 +1536,32 @@ function renderDishRow(dayId, category, recipe, label) {
     categoryBadgeClass = 'bg-gradient-to-r from-lime-500 to-emerald-500 text-white';
   }
 
-  // 代替メニューが必要な子供がいるかチェック
+  // 代替メニューが必要な子供がいるかチェック（お子様0人の場合はスキップ）
   let altMenus = [];
-  Object.keys(state.childrenPreferences).forEach(childId => {
-    const pref = state.childrenPreferences[childId];
-    if (!canChildEat(recipe, pref) && recipe.baseIngredientsGroup) {
-      const alt = RECIPES_DATA.find(r => 
-        r.baseIngredientsGroup === recipe.baseIngredientsGroup && 
-        r.id !== recipe.id &&
-        canChildEat(r, pref)
-      );
-      if (alt) {
-        altMenus.push({ childId, alt });
+  if (state.childrenCount > 0) {
+    for (let i = 1; i <= state.childrenCount; i++) {
+      const childId = `child${i}`;
+      const pref = state.childrenPreferences[childId] || { dislikes: [], disabledFlavors: [] };
+      if (!canChildEat(recipe, pref) && recipe.baseIngredientsGroup) {
+        const alt = RECIPES_DATA.find(r => 
+          r &&
+          r.baseIngredientsGroup === recipe.baseIngredientsGroup && 
+          r.id !== recipe.id &&
+          canChildEat(r, pref)
+        );
+        if (alt) {
+          altMenus.push({ childId, label: `子供${i}`, alt });
+        }
       }
     }
-  });
+  }
 
-  const childLabels = { child1: '子供1', child2: '子供2', child3: '子供3' };
   let altHtml = '';
   if (altMenus.length > 0) {
     altHtml = altMenus.map(m => `
       <div class="mt-2 pl-2.5 border-l-3 border-amber-400 flex items-center justify-between bg-amber-50/90 rounded-r-xl p-2">
         <div class="flex items-center gap-2">
-          <span class="text-[10px] font-black text-amber-900 bg-amber-200/90 px-2 py-0.5 rounded-full">別メニュー (${childLabels[m.childId]})</span>
+          <span class="text-[10px] font-black text-amber-900 bg-amber-200/90 px-2 py-0.5 rounded-full">別メニュー (${m.label})</span>
           <span class="text-xs font-bold text-amber-950 cursor-pointer hover:underline" onclick="openDetailModal('${m.alt.id}')">${getCleanTitle(m.alt)}</span>
         </div>
       </div>
