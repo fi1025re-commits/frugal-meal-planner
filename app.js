@@ -1528,8 +1528,9 @@ function generateShoppingListText() {
     return `【🛒 今週の買い物リスト（${state.servings}人分）】\nすべての食材を購入済みです！🎉`;
   }
 
-  text += `\n※目標予算: ¥${state.targetBudget.toLocaleString()} / 冷蔵庫の在庫を確認してご購入ください✨`;
+  text += `\n※目標予算: ¥${state.targetBudget.toLocaleString()} / 冷蔵庫の在庫を確認してご購入ください✨\n\n🍳 節約献立＆買い物リスト作成:\nhttps://fi1025re-commits.github.io/frugal-meal-planner/`;
   return text;
+
 }
 
 function shareToLine() {
