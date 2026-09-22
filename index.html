@@ -87,26 +87,32 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-1.5 sm:gap-2">
+        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <!-- 使い方ガイドボタン -->
-          <button id="btn-open-guide" class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-bold text-teal-800 bg-teal-50/90 hover:bg-teal-100/90 transition-all border-2 border-teal-200 shadow-2xs hover:scale-105 active:scale-95" title="使い方を見る">
-            <span class="text-sm sm:text-base leading-none">❓</span>
+          <button id="btn-open-guide" onclick="openGuideModal()" class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-bold text-teal-800 bg-teal-50/90 hover:bg-teal-100 transition-all border-2 border-teal-200 shadow-2xs active:scale-95 cursor-pointer" title="使い方を見る">
+            <span class="text-sm leading-none">❓</span>
             <span>使い方</span>
           </button>
 
+          <!-- 夫婦間共有ボタン -->
+          <button id="btn-open-sync" onclick="openSyncModal()" class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-bold text-indigo-800 bg-indigo-50/90 hover:bg-indigo-100 transition-all border-2 border-indigo-200 shadow-2xs active:scale-95 cursor-pointer" title="夫婦・家族で献立と買い物リストを共有">
+            <span class="text-sm leading-none">👥</span>
+            <span>夫婦共有</span>
+            <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-slate-300 ml-0.5"></span>
+          </button>
+
           <!-- PC専用：スマホ連携ボタン -->
-          <button id="btn-open-mobile-modal" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold text-sky-900 bg-sky-50/90 hover:bg-sky-100/90 transition-all border-2 border-sky-200 shadow-2xs hover:scale-105 active:scale-95" title="スマホで実機確認（QRコード表示）">
+          <button id="btn-open-mobile-modal" onclick="openMobileModal()" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold text-sky-900 bg-sky-50/90 hover:bg-sky-100/90 transition-all border-2 border-sky-200 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer" title="スマホで実機確認（QRコード表示）">
             <span class="text-base leading-none">📱</span>
             <span>スマホで見る</span>
           </button>
         </div>
       </div>
 
-
       <!-- アクションボタン群（スマホでは3列均等で横並び・省スペース） -->
       <div class="grid grid-cols-3 sm:flex sm:items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
         <!-- お子様の好み設定ボタン -->
-        <button id="btn-open-preferences" class="flex items-center justify-center gap-1 px-2.5 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-bold text-lime-900 bg-lime-50/90 hover:bg-lime-100/90 transition-all border-2 border-lime-200 shadow-2xs active:scale-95">
+        <button id="btn-open-preferences" onclick="openPreferencesModal(false)" class="flex items-center justify-center gap-1 px-2.5 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-bold text-lime-900 bg-lime-50/90 hover:bg-lime-100/90 transition-all border-2 border-lime-200 shadow-2xs active:scale-95 cursor-pointer">
           <span class="text-sm sm:text-base leading-none">👶</span>
           <span>好み設定</span>
         </button>
@@ -126,12 +132,13 @@
         </div>
 
         <!-- 1週間分自動生成ボタン -->
-        <button id="btn-regenerate-weekly" class="flex items-center justify-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 transition-all shadow-md shadow-sky-200/60 active:scale-95">
+        <button id="btn-regenerate-weekly" onclick="generateRandomWeeklyPlan(true)" class="flex items-center justify-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 transition-all shadow-md shadow-sky-200/60 active:scale-95 cursor-pointer">
           <i data-lucide="sparkles" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
           <span>献立生成</span>
         </button>
       </div>
     </div>
+
 
     <!-- ================= 予算コントロール＆ステータスバー ================= -->
     <div class="bg-gradient-to-r from-sky-50/80 via-teal-50/60 to-lime-50/80 border-t border-sky-100/80 py-2 px-3 sm:px-6">
@@ -288,6 +295,24 @@
         <!-- JSで動的レンダリング -->
       </div>
 
+      <!-- 購入済み食材エリア（チェックされたアイテムが自動でここに移動・薄色化） -->
+      <div id="purchased-section-container" class="mt-8 bg-slate-50/90 border border-slate-200/80 rounded-2xl p-5 shadow-xs transition-all">
+        <div class="flex items-center justify-between cursor-pointer select-none" id="btn-toggle-purchased" onclick="togglePurchasedSection()">
+          <div class="flex items-center gap-2">
+            <span class="text-base">✅</span>
+            <h3 class="text-sm font-bold text-slate-700">購入済みの食材</h3>
+            <span id="purchased-count-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold">0件</span>
+          </div>
+          <div class="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-xs font-medium">
+            <span>タップで元に戻す</span>
+            <i id="icon-toggle-purchased" data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-200"></i>
+          </div>
+        </div>
+        <div id="shopping-purchased-container" class="mt-3.5 space-y-1.5 border-t border-slate-200/60 pt-3">
+          <!-- JSで動的レンダリング -->
+        </div>
+      </div>
+
       <!-- ================= 広告スロット ③（リスト下部） ================= -->
       <div class="mt-8 bg-slate-100/80 border border-dashed border-slate-300 rounded-2xl py-4 px-4 text-center">
         <span class="text-[10px] text-slate-400 font-bold tracking-wider uppercase block mb-1">スポンサーリンク</span>
@@ -375,12 +400,15 @@
       <div class="flex items-center justify-center gap-4 flex-wrap text-slate-500 font-bold">
         <a href="index.html" class="hover:text-emerald-600 transition-colors">トップ</a>
         <span>•</span>
-        <button id="btn-open-guide-footer" class="hover:text-emerald-600 transition-colors cursor-pointer">❓ 使い方ガイド</button>
+        <button id="btn-open-guide-footer" onclick="openGuideModal()" class="hover:text-emerald-600 transition-colors cursor-pointer">❓ 使い方ガイド</button>
         <span>•</span>
-        <button id="btn-open-feedback-footer" class="hover:text-emerald-600 transition-colors cursor-pointer">💬 ご意見・不具合報告</button>
+        <button id="btn-open-sync-footer" onclick="openSyncModal()" class="hover:text-indigo-600 transition-colors cursor-pointer">👥 夫婦間共有（合言葉）</button>
+        <span>•</span>
+        <button id="btn-open-feedback-footer" onclick="openFeedbackModal()" class="hover:text-emerald-600 transition-colors cursor-pointer">💬 ご意見・不具合報告</button>
         <span>•</span>
         <a href="privacy.html" class="hover:text-emerald-600 transition-colors">プライバシーポリシー・免責事項</a>
       </div>
+
 
       <p class="font-medium text-slate-500">食費節約献立＆買い出しマスター by AOBA</p>
       <p class="text-slate-400">© 2026 AOBA. All Rights Reserved. 完全無料・広告掲載対応</p>
@@ -423,8 +451,27 @@
         </select>
       </div>
 
-      <!-- 子供切り替えタブ -->
-      <div class="flex border-b border-slate-200 shrink-0 bg-slate-50">
+      <!-- お子様の人数設定ブロック（0人〜5人） -->
+      <div class="px-6 py-3 bg-amber-50/70 border-b border-amber-100 flex items-center justify-between gap-3 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl leading-none">👶</span>
+          <div>
+            <div class="text-xs font-black text-slate-800">お子様の人数</div>
+            <div class="text-[11px] text-slate-500">人数分の好き嫌い個別設定タブを用意します</div>
+          </div>
+        </div>
+        <select id="modal-children-count-select" class="bg-white border-2 border-amber-300 text-amber-950 font-black text-xs rounded-xl px-3 py-1.5 focus:ring-amber-400 cursor-pointer shadow-2xs">
+          <option value="0">0人（大人・夫婦のみ）</option>
+          <option value="1">1人</option>
+          <option value="2">2人</option>
+          <option value="3" selected>3人（標準）</option>
+          <option value="4">4人</option>
+          <option value="5">5人</option>
+        </select>
+      </div>
+
+      <!-- 子供切り替えタブ（JSで人数に応じて動的レンダリング） -->
+      <div id="child-tabs-container" class="flex border-b border-slate-200 shrink-0 bg-slate-50 overflow-x-auto">
         <button data-child-tab="child1" class="flex-1 py-3 text-sm font-bold text-teal-700 border-b-2 border-teal-600 bg-white">子供1</button>
         <button data-child-tab="child2" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-white border-b-2 border-transparent transition-colors">子供2</button>
         <button data-child-tab="child3" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-white border-b-2 border-transparent transition-colors">子供3</button>
@@ -800,6 +847,64 @@
     </div>
   </div>
 
+  <!-- ==================== モーダル: 夫婦間共有（合言葉同期） ==================== -->
+  <div id="modal-sync" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col p-6 border border-indigo-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl shrink-0">
+            👥
+          </div>
+          <div>
+            <h3 class="text-base font-black text-slate-900">夫婦・家族で献立共有</h3>
+            <p class="text-[11px] text-slate-500 font-bold">合言葉を入力するだけでリアルタイム同期</p>
+          </div>
+        </div>
+        <button id="btn-close-sync" onclick="closeSyncModal()" class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <div class="bg-indigo-50/80 p-3.5 rounded-2xl border border-indigo-100 text-slate-700 leading-relaxed text-[11px]">
+          💡 <strong>使い方:</strong> 夫婦で同じ「合言葉（例: <code>tanaka55</code>）」を決めて入力するだけ！登録・ログインは一切不要です。献立の変更や買い物リストのチェックが相手のスマホにも自動反映されます。
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1.5">家族の合言葉（半角英数字4〜16文字）</label>
+          <div class="flex gap-2">
+            <input type="text" id="sync-family-code" placeholder="例: tanaka55" maxlength="16" class="flex-1 border-2 border-indigo-200 rounded-xl px-3 py-2 text-slate-900 font-black text-sm focus:ring-2 focus:ring-indigo-400 uppercase tracking-wider">
+            <button id="btn-connect-sync" onclick="connectFamilySync()" class="px-4 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm cursor-pointer active:scale-95 shrink-0">
+              接続する
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-400 mt-1">※ご夫婦で共有しやすい、推測されにくい合言葉をお使いください。</p>
+        </div>
+
+        <!-- 接続ステータス表示 -->
+        <div id="sync-connection-info" class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-[11px] flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span id="sync-indicator-bulb" class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+            <span id="sync-indicator-text" class="font-bold">未接続（この端末のみで保存中）</span>
+          </div>
+          <button id="btn-disconnect-sync" onclick="disconnectFamilySync()" class="hidden text-rose-500 hover:text-rose-700 font-bold underline cursor-pointer">
+            切断
+          </button>
+        </div>
+
+        <div class="pt-2 flex items-center justify-between">
+          <button id="btn-manual-sync-now" onclick="triggerManualSync()" class="hidden px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition cursor-pointer flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>今すぐ同期</span>
+          </button>
+          <button onclick="closeSyncModal()" class="ml-auto px-5 py-2.5 rounded-2xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition cursor-pointer">
+            閉じる
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== トースト通知 ==================== -->
 
   <div id="toast" class="fixed bottom-6 right-6 z-50 bg-slate-900/90 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-xl backdrop-blur transition-all duration-300 transform opacity-0 translate-y-4 pointer-events-none flex items-center gap-2">
@@ -807,8 +912,8 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20260922b"></script>
-  <script src="app.js?v=20260922b"></script>
+  <script src="recipes.js?v=20260922c"></script>
+  <script src="app.js?v=20260922c"></script>
 </body>
 
 </html>

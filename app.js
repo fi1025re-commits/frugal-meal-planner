@@ -6,12 +6,16 @@ const state = {
   targetBudget: 7500, // 1週間の目標予算（円）初期値
   weeklyPlan: null, // { mon: { main: id, side: id, soup: id }, ... }
   checkedItems: {}, // { '合挽き肉_g': true, ... }
+  childrenCount: 3, // お子様の人数 (0〜5人)
   childrenPreferences: {
     child1: { dislikes: [], disabledFlavors: [] },
     child2: { dislikes: [], disabledFlavors: [] },
     child3: { dislikes: [], disabledFlavors: [] }
   },
   activeChildTab: 'child1',
+  familySyncCode: '', // 夫婦間共有合言葉 (例: tanaka55)
+  syncStatus: 'disconnected', // 'disconnected' | 'connected' | 'syncing' | 'error'
+  lastSyncTime: 0,
   hasCompletedOnboarding: false, // 初回アンケート完了フラグ
   activeTab: 'weekly', // 'weekly' | 'shopping' | 'recipes'
   searchQuery: '',
@@ -38,7 +42,9 @@ const STORAGE_KEY_SERVINGS = 'frugal_servings_v3';
 const STORAGE_KEY_BUDGET = 'frugal_target_budget_v3';
 const STORAGE_KEY_CHECKED = 'frugal_checked_items_v3';
 const STORAGE_KEY_DISLIKES = 'frugal_disliked_ingredients_v3';
+const STORAGE_KEY_CHILDREN_COUNT = 'frugal_children_count_v1';
 const STORAGE_KEY_CHILDREN_PREF = 'frugal_children_pref_v3';
+const STORAGE_KEY_SYNC_CODE = 'frugal_sync_family_code_v1';
 const STORAGE_KEY_ONBOARDING = 'frugal_onboarding_completed_v3';
 const STORAGE_KEY_SHOPPING_DAYS = 'frugal_shopping_days_v3';
 const STORAGE_KEY_FAVORITES = 'frugal_favorite_recipes_v1';
@@ -86,6 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     render();
 
+    // 夫婦間共有が設定されている場合は自動ポーリングを開始
+    if (state.familySyncCode) {
+      updateSyncStatusUI('connected');
+      startSyncPolling();
+    }
+
     // 初回利用者はまず「使い方ガイド」を表示
     const guideSeen = localStorage.getItem(STORAGE_KEY_GUIDE_SEEN);
     if (!guideSeen) {
@@ -115,6 +127,13 @@ function loadSavedState() {
     state.targetBudget = parseInt(savedBudget, 10) || 7500;
   }
 
+  const savedChildrenCount = localStorage.getItem(STORAGE_KEY_CHILDREN_COUNT);
+  if (savedChildrenCount !== null) {
+    state.childrenCount = parseInt(savedChildrenCount, 10);
+  } else {
+    state.childrenCount = 3; // デフォルト3人
+  }
+
   const savedChildrenPref = localStorage.getItem(STORAGE_KEY_CHILDREN_PREF);
   if (savedChildrenPref) {
     try {
@@ -133,6 +152,29 @@ function loadSavedState() {
         }
       } catch (e) {}
     }
+  }
+
+  // 1〜5人分のキーを安全に確保
+  for (let i = 1; i <= 5; i++) {
+    const k = `child${i}`;
+    if (!state.childrenPreferences[k]) {
+      state.childrenPreferences[k] = { dislikes: [], disabledFlavors: [] };
+    }
+  }
+
+  // 合言葉同期の読み込み（URLパラメータまたはハッシュがあれば優先）
+  const urlParams = new URLSearchParams(window.location.search);
+  const hashParam = window.location.hash ? window.location.hash.replace('#', '') : '';
+  let initialCode = urlParams.get('family') || urlParams.get('code') || '';
+  if (!initialCode && hashParam.startsWith('family=')) {
+    initialCode = hashParam.split('=')[1];
+  }
+  if (!initialCode) {
+    initialCode = localStorage.getItem(STORAGE_KEY_SYNC_CODE) || '';
+  }
+  if (initialCode) {
+    state.familySyncCode = initialCode.trim().toLowerCase();
+    localStorage.setItem(STORAGE_KEY_SYNC_CODE, state.familySyncCode);
   }
 
   const savedOnboarding = localStorage.getItem(STORAGE_KEY_ONBOARDING);
@@ -259,10 +301,19 @@ function updateNgBadge() {
 // 苦手食材を含まないレシピをフィルタリング
 function filterRecipesByDislikes(recipes) {
   if (!Array.isArray(recipes)) return [];
+  // お子様が0人の場合は大人・夫婦のみモードのため苦手除外をスキップ
+  if (state.childrenCount === 0) return recipes;
+
+  const activeChildKeys = [];
+  for (let i = 1; i <= state.childrenCount; i++) {
+    activeChildKeys.push(`child${i}`);
+  }
+
   const filtered = recipes.filter(recipe => {
     if (!recipe) return false;
-    // 全ての子供が（直接、または代替メニューで）食べられるかチェック
-    const allChildrenCanEat = Object.values(state.childrenPreferences).every(pref => {
+    // 設定されている人数分のお子様が食べられるかチェック
+    const allChildrenCanEat = activeChildKeys.every(k => {
+      const pref = state.childrenPreferences[k] || { dislikes: [], disabledFlavors: [] };
       if (canChildEat(recipe, pref)) return true;
       
       // 代替メニューがあるかチェック
@@ -461,6 +512,10 @@ function generateRandomWeeklyPlan(showNotify = true) {
   }
 
   render();
+
+  if (state.familySyncCode) {
+    pushSyncDataDebounced();
+  }
 }
 
 function savePlan() {
@@ -748,29 +803,10 @@ function setupEventListeners() {
     formAdd.addEventListener('submit', handleAddRecipeSubmit);
   }
 
-  // スマホ実機確認モーダル
+  // スマホ実機確認ボタン（URLコピー等の安全フォールバック）
   const btnOpenMobile = document.getElementById('btn-open-mobile-modal');
   if (btnOpenMobile) {
     btnOpenMobile.addEventListener('click', openMobileModal);
-  }
-
-  const btnCloseMobile = document.getElementById('btn-close-mobile-modal');
-  if (btnCloseMobile) {
-    btnCloseMobile.addEventListener('click', closeMobileModal);
-  }
-
-  const modalMobile = document.getElementById('modal-mobile-connect');
-  if (modalMobile) {
-    modalMobile.addEventListener('click', (e) => {
-      if (e.target.id === 'modal-mobile-connect') {
-        closeMobileModal();
-      }
-    });
-  }
-
-  const btnCopyMobile = document.getElementById('btn-copy-mobile-url');
-  if (btnCopyMobile) {
-    btnCopyMobile.addEventListener('click', copyMobileUrl);
   }
 
   // 使い方ガイドモーダル
@@ -838,6 +874,31 @@ function setupEventListeners() {
     formFeedback.addEventListener('submit', handleFeedbackSubmit);
   }
 
+  // 夫婦間共有モーダル
+  const btnOpenSync = document.getElementById('btn-open-sync');
+  if (btnOpenSync) {
+    btnOpenSync.addEventListener('click', openSyncModal);
+  }
+
+  const btnOpenSyncFooter = document.getElementById('btn-open-sync-footer');
+  if (btnOpenSyncFooter) {
+    btnOpenSyncFooter.addEventListener('click', openSyncModal);
+  }
+
+  const btnCloseSync = document.getElementById('btn-close-sync');
+  if (btnCloseSync) {
+    btnCloseSync.addEventListener('click', closeSyncModal);
+  }
+
+  const modalSync = document.getElementById('modal-sync');
+  if (modalSync) {
+    modalSync.addEventListener('click', (e) => {
+      if (e.target.id === 'modal-sync') {
+        closeSyncModal();
+      }
+    });
+  }
+
   // データ初期化ボタン
   const btnResetData = document.getElementById('btn-reset-data');
   if (btnResetData) {
@@ -845,16 +906,54 @@ function setupEventListeners() {
   }
 }
 
-// 使い方ガイドの制御
-window.openGuideModal = function() {
+// ==================== スマホ実機確認モーダル制御 ====================
+function openMobileModal() {
+  const modal = document.getElementById('modal-mobile-connect');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    safeCreateIcons();
+  } else {
+    // モーダル要素が存在しない場合はURLをクリップボードにコピー
+    copyMobileUrl();
+  }
+}
+window.openMobileModal = openMobileModal;
+
+function closeMobileModal() {
+  const modal = document.getElementById('modal-mobile-connect');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+window.closeMobileModal = closeMobileModal;
+
+function copyMobileUrl() {
+  const url = window.location.href.split('#')[0];
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('スマホ閲覧用URLをコピーしました！');
+    }).catch(() => {
+      showToast(url);
+    });
+  } else {
+    showToast(url);
+  }
+}
+window.copyMobileUrl = copyMobileUrl;
+
+// ==================== 使い方ガイドの制御 ====================
+function openGuideModal() {
   const modal = document.getElementById('modal-guide');
   if (!modal) return;
   modal.classList.remove('hidden');
   modal.classList.add('flex');
   safeCreateIcons();
-};
+}
+window.openGuideModal = openGuideModal;
 
-window.closeGuideModal = function() {
+function closeGuideModal() {
   const modal = document.getElementById('modal-guide');
   if (!modal) return;
   modal.classList.add('hidden');
@@ -872,10 +971,11 @@ window.closeGuideModal = function() {
       openPreferencesModal(true);
     }, 300);
   }
-};
+}
+window.closeGuideModal = closeGuideModal;
 
-// ご意見・バグ報告フォームの制御
-window.openFeedbackModal = function() {
+// ==================== ご意見・バグ報告フォームの制御 ====================
+function openFeedbackModal() {
   const modal = document.getElementById('modal-feedback');
   if (!modal) return;
 
@@ -888,14 +988,239 @@ window.openFeedbackModal = function() {
   modal.classList.remove('hidden');
   modal.classList.add('flex');
   safeCreateIcons();
-};
+}
+window.openFeedbackModal = openFeedbackModal;
 
-window.closeFeedbackModal = function() {
+function closeFeedbackModal() {
   const modal = document.getElementById('modal-feedback');
   if (!modal) return;
   modal.classList.add('hidden');
   modal.classList.remove('flex');
-};
+}
+window.closeFeedbackModal = closeFeedbackModal;
+
+// ==================== 夫婦間共有（合言葉同期エンジン） ====================
+let syncPollingTimer = null;
+let syncDebounceTimer = null;
+const SYNC_API_BASE = 'https://frugal-meal-sync-default-rtdb.firebaseio.com/families';
+
+function getSyncPayload() {
+  return {
+    updatedAt: Date.now(),
+    servings: state.servings,
+    targetBudget: state.targetBudget,
+    weeklyPlan: state.weeklyPlan,
+    checkedItems: state.checkedItems,
+    childrenCount: state.childrenCount,
+    childrenPreferences: state.childrenPreferences
+  };
+}
+
+async function fetchSyncData(code) {
+  if (!code) return null;
+  const cleanCode = encodeURIComponent(code.trim().toLowerCase());
+  try {
+    const res = await fetch(`${SYNC_API_BASE}/${cleanCode}.json`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('Sync fetch warning:', err);
+    return null;
+  }
+}
+
+async function pushSyncData(code) {
+  if (!code) return false;
+  const cleanCode = encodeURIComponent(code.trim().toLowerCase());
+  const payload = getSyncPayload();
+  try {
+    updateSyncStatusUI('syncing');
+    const res = await fetch(`${SYNC_API_BASE}/${cleanCode}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      state.lastSyncTime = payload.updatedAt;
+      updateSyncStatusUI('connected');
+      return true;
+    }
+  } catch (err) {
+    console.warn('Sync push warning:', err);
+  }
+  updateSyncStatusUI(state.familySyncCode ? 'connected' : 'disconnected');
+  return false;
+}
+
+function pushSyncDataDebounced() {
+  if (!state.familySyncCode) return;
+  if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(() => {
+    pushSyncData(state.familySyncCode);
+  }, 1200);
+}
+
+function updateSyncStatusUI(status) {
+  state.syncStatus = status;
+  const dot = document.getElementById('sync-status-dot');
+  const bulb = document.getElementById('sync-indicator-bulb');
+  const text = document.getElementById('sync-indicator-text');
+  const disconnectBtn = document.getElementById('btn-disconnect-sync');
+  const manualBtn = document.getElementById('btn-manual-sync-now');
+
+  if (status === 'connected') {
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-0.5';
+    if (bulb) bulb.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+    if (text) text.innerHTML = `<span class="text-emerald-700">同期中: <strong>${state.familySyncCode}</strong></span>`;
+    if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+    if (manualBtn) manualBtn.classList.remove('hidden');
+  } else if (status === 'syncing') {
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-sky-400 animate-ping ml-0.5';
+    if (bulb) bulb.className = 'w-2.5 h-2.5 rounded-full bg-sky-400';
+    if (text) text.innerHTML = `<span class="text-sky-700">クラウドと通信中...</span>`;
+  } else {
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-slate-300 ml-0.5';
+    if (bulb) bulb.className = 'w-2.5 h-2.5 rounded-full bg-slate-300';
+    if (text) text.innerHTML = `<span>未接続（この端末のみで保存中）</span>`;
+    if (disconnectBtn) disconnectBtn.classList.add('hidden');
+    if (manualBtn) manualBtn.classList.add('hidden');
+  }
+}
+
+function startSyncPolling() {
+  if (syncPollingTimer) clearInterval(syncPollingTimer);
+  if (!state.familySyncCode) return;
+
+  // 6秒ごとにクラウドから最新状態を取得して夫婦間で即時反映
+  syncPollingTimer = setInterval(async () => {
+    if (!state.familySyncCode) return;
+    const remoteData = await fetchSyncData(state.familySyncCode);
+    if (remoteData && remoteData.updatedAt && remoteData.updatedAt > (state.lastSyncTime || 0)) {
+      applyRemoteData(remoteData);
+    }
+  }, 6000);
+}
+
+function applyRemoteData(data) {
+  let changed = false;
+  if (data.weeklyPlan && JSON.stringify(data.weeklyPlan) !== JSON.stringify(state.weeklyPlan)) {
+    state.weeklyPlan = data.weeklyPlan;
+    saveWeeklyPlan();
+    changed = true;
+  }
+  if (data.checkedItems && JSON.stringify(data.checkedItems) !== JSON.stringify(state.checkedItems)) {
+    state.checkedItems = data.checkedItems;
+    saveChecked();
+    changed = true;
+  }
+  if (data.servings && data.servings !== state.servings) {
+    state.servings = data.servings;
+    saveServings();
+    changed = true;
+  }
+  if (data.targetBudget && data.targetBudget !== state.targetBudget) {
+    state.targetBudget = data.targetBudget;
+    saveBudget();
+    changed = true;
+  }
+  if (data.childrenCount !== undefined && data.childrenCount !== state.childrenCount) {
+    state.childrenCount = data.childrenCount;
+    localStorage.setItem(STORAGE_KEY_CHILDREN_COUNT, state.childrenCount);
+    changed = true;
+  }
+  if (data.childrenPreferences) {
+    state.childrenPreferences = data.childrenPreferences;
+    saveChildrenPreferences();
+    changed = true;
+  }
+
+  state.lastSyncTime = data.updatedAt;
+  if (changed) {
+    render();
+    showToast('パートナーの操作内容（献立・買い物チェック）を同期しました！');
+  }
+}
+
+function openSyncModal() {
+  const modal = document.getElementById('modal-sync');
+  const codeInput = document.getElementById('sync-family-code');
+  if (!modal) return;
+
+  if (codeInput) {
+    codeInput.value = state.familySyncCode || '';
+  }
+  updateSyncStatusUI(state.familySyncCode ? 'connected' : 'disconnected');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  safeCreateIcons();
+}
+window.openSyncModal = openSyncModal;
+
+function closeSyncModal() {
+  const modal = document.getElementById('modal-sync');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+window.closeSyncModal = closeSyncModal;
+
+async function connectFamilySync() {
+  const input = document.getElementById('sync-family-code');
+  const rawCode = input ? input.value.trim() : '';
+  if (!rawCode || rawCode.length < 3) {
+    showToast('合言葉は3文字以上で入力してください');
+    return;
+  }
+
+  const cleanCode = rawCode.toLowerCase();
+  showToast('接続中...');
+  updateSyncStatusUI('syncing');
+
+  const remoteData = await fetchSyncData(cleanCode);
+  state.familySyncCode = cleanCode;
+  localStorage.setItem(STORAGE_KEY_SYNC_CODE, cleanCode);
+
+  if (remoteData && remoteData.weeklyPlan) {
+    // 相手が既に作成済みのデータがある場合は取り込む
+    applyRemoteData(remoteData);
+    showToast(`合言葉【${cleanCode}】に接続し、献立を同期しました！`);
+  } else {
+    // まだ相手がいない場合は現在のデータをアップロード
+    await pushSyncData(cleanCode);
+    showToast(`合言葉【${cleanCode}】を作成しました！パートナーにもこの合言葉を教えてください`);
+  }
+
+  updateSyncStatusUI('connected');
+  startSyncPolling();
+  closeSyncModal();
+}
+window.connectFamilySync = connectFamilySync;
+
+function disconnectFamilySync() {
+  if (!confirm('夫婦間共有を解除しますか？（現在のデータはこの端末に残ります）')) return;
+  if (syncPollingTimer) clearInterval(syncPollingTimer);
+  state.familySyncCode = '';
+  localStorage.removeItem(STORAGE_KEY_SYNC_CODE);
+  updateSyncStatusUI('disconnected');
+  showToast('夫婦間共有を解除しました');
+  closeSyncModal();
+}
+window.disconnectFamilySync = disconnectFamilySync;
+
+async function triggerManualSync() {
+  if (!state.familySyncCode) return;
+  showToast('クラウドと最新同期中...');
+  updateSyncStatusUI('syncing');
+  const remoteData = await fetchSyncData(state.familySyncCode);
+  if (remoteData && remoteData.updatedAt) {
+    applyRemoteData(remoteData);
+  } else {
+    await pushSyncData(state.familySyncCode);
+  }
+  updateSyncStatusUI('connected');
+  showToast('同期が完了しました！');
+}
+window.triggerManualSync = triggerManualSync;
 
 window.handleFeedbackSubmit = function(e) {
   e.preventDefault();
@@ -1407,6 +1732,8 @@ function formatAmount(amount, unit) {
 
 function renderShoppingList() {
   const container = document.getElementById('shopping-list-container');
+  const purchasedContainer = document.getElementById('shopping-purchased-container');
+  const purchasedBadge = document.getElementById('purchased-count-badge');
   if (!container) return;
 
   const aggregated = calculateAggregatedShoppingList();
@@ -1414,22 +1741,30 @@ function renderShoppingList() {
 
   if (keys.length === 0) {
     container.innerHTML = `
-      <div class="text-center py-12 text-slate-400">
+      <div class="col-span-full text-center py-12 text-slate-400">
         <i data-lucide="shopping-cart" class="w-12 h-12 mx-auto mb-3 opacity-40"></i>
         <p>献立が選択されていません。「1週間の献立」タブから生成してください。</p>
       </div>
     `;
+    if (purchasedContainer) purchasedContainer.innerHTML = '';
+    if (purchasedBadge) purchasedBadge.textContent = '0件';
     safeCreateIcons();
     return;
   }
 
   const grouped = {};
   AISLE_ORDER.forEach(aisle => { grouped[aisle] = []; });
+  const purchasedItems = [];
 
   keys.forEach(key => {
     const item = aggregated[key];
-    const aisle = grouped[item.aisle] ? item.aisle : '調味料・その他';
-    grouped[aisle].push({ key, ...item });
+    const isChecked = !!state.checkedItems[key];
+    if (isChecked) {
+      purchasedItems.push({ key, ...item });
+    } else {
+      const aisle = grouped[item.aisle] ? item.aisle : '調味料・その他';
+      grouped[aisle].push({ key, ...item });
+    }
   });
 
   const aisleConfig = {
@@ -1441,9 +1776,12 @@ function renderShoppingList() {
 
   container.innerHTML = '';
 
+  let totalUncheckedCount = 0;
+
   AISLE_ORDER.forEach(aisle => {
     const items = grouped[aisle];
     if (items.length === 0) return;
+    totalUncheckedCount += items.length;
 
     const conf = aisleConfig[aisle] || { icon: 'tag', emoji: '🏷️', color: 'text-slate-700 bg-slate-100 border border-slate-200' };
 
@@ -1451,19 +1789,17 @@ function renderShoppingList() {
     section.className = 'bg-white/95 rounded-3xl border-2 border-sky-100/90 shadow-sm overflow-hidden mb-5';
 
     let itemsHtml = items.map(item => {
-      const isChecked = !!state.checkedItems[item.key];
       return `
-        <label class="flex items-center justify-between p-3.5 hover:bg-sky-50/40 rounded-2xl cursor-pointer select-none transition-colors border border-transparent hover:border-sky-100 ${isChecked ? 'bg-slate-50/70 opacity-40' : ''}">
+        <label class="flex items-center justify-between p-3.5 hover:bg-sky-50/60 rounded-2xl cursor-pointer select-none transition-all border border-transparent hover:border-sky-100 active:scale-[0.99]">
           <div class="flex items-center gap-3">
             <input type="checkbox" 
                    class="w-5 h-5 rounded-md text-teal-600 focus:ring-teal-400 border-slate-300 transition cursor-pointer accent-teal-600"
-                   ${isChecked ? 'checked' : ''} 
                    onchange="toggleCheckItem('${item.key}')">
-            <span class="text-sm font-bold ${isChecked ? 'line-through text-slate-400' : 'text-slate-800'}">
+            <span class="text-sm font-bold text-slate-800">
               ${item.name}
             </span>
           </div>
-          <span class="text-sm font-black ${isChecked ? 'text-slate-400' : 'text-teal-700'}">
+          <span class="text-sm font-black text-teal-700">
             ${formatAmount(item.amount, item.unit)}
           </span>
         </label>
@@ -1486,6 +1822,51 @@ function renderShoppingList() {
     container.appendChild(section);
   });
 
+  if (totalUncheckedCount === 0 && purchasedItems.length > 0) {
+    const emptyNotice = document.createElement('div');
+    emptyNotice.className = 'col-span-full text-center py-8 bg-white rounded-3xl border-2 border-emerald-200 p-6 shadow-xs';
+    emptyNotice.innerHTML = `
+      <span class="text-4xl block mb-2">🎉</span>
+      <h4 class="font-black text-emerald-800 text-base mb-1">すべての食材を購入完了しました！</h4>
+      <p class="text-xs text-slate-500">お買い出しお疲れ様でした。下の「購入済みの食材」をタップすると元に戻せます。</p>
+    `;
+    container.appendChild(emptyNotice);
+  }
+
+  // 購入済み食材エリアの描画
+  if (purchasedContainer) {
+    if (purchasedItems.length === 0) {
+      purchasedContainer.innerHTML = `
+        <div class="text-center py-4 text-slate-400 text-xs font-medium">
+          購入済みの食材はまだありません（チェックした食材がここに移動します）
+        </div>
+      `;
+    } else {
+      purchasedContainer.innerHTML = purchasedItems.map(item => `
+        <div class="flex items-center justify-between p-2.5 bg-white/80 hover:bg-white rounded-xl border border-slate-200/60 cursor-pointer select-none transition-all opacity-60 hover:opacity-100 group"
+             onclick="toggleCheckItem('${item.key}')" title="タップで買い物リストに戻す">
+          <div class="flex items-center gap-2.5">
+            <span class="w-4 h-4 rounded bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black">✓</span>
+            <span class="text-xs font-bold text-slate-500 line-through group-hover:text-slate-800">
+              ${item.name}
+            </span>
+            <span class="text-[10px] text-slate-400 font-medium">(${item.aisle})</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-400 line-through">
+              ${formatAmount(item.amount, item.unit)}
+            </span>
+            <span class="text-[10px] text-teal-600 font-bold hidden group-hover:inline">元に戻す</span>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  if (purchasedBadge) {
+    purchasedBadge.textContent = `${purchasedItems.length}件`;
+  }
+
   safeCreateIcons();
 }
 
@@ -1493,6 +1874,19 @@ window.toggleCheckItem = function(key) {
   state.checkedItems[key] = !state.checkedItems[key];
   saveChecked();
   renderShoppingList();
+  if (state.familySyncCode) {
+    pushSyncDataDebounced();
+  }
+};
+
+window.togglePurchasedSection = function() {
+  const container = document.getElementById('shopping-purchased-container');
+  const icon = document.getElementById('icon-toggle-purchased');
+  if (!container) return;
+  container.classList.toggle('hidden');
+  if (icon) {
+    icon.classList.toggle('rotate-180');
+  }
 };
 
 function generateShoppingListText() {
@@ -1530,14 +1924,15 @@ function generateShoppingListText() {
 
   text += `\n※目標予算: ¥${state.targetBudget.toLocaleString()} / 冷蔵庫の在庫を確認してご購入ください✨\n\n🍳 節約献立＆買い物リスト作成:\nhttps://fi1025re-commits.github.io/frugal-meal-planner/`;
   return text;
-
 }
 
 function shareToLine() {
   const text = generateShoppingListText();
-  const lineUrl = `https://social-plugins.line.me/lineit/share?text=${encodeURIComponent(text)}`;
+  // LINE公式URLスキーム（https://line.me/R/msg/text/?...）で確実にLINEアプリが起動
+  const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
   window.open(lineUrl, '_blank');
 }
+
 
 function copyShoppingListToClipboard() {
   const text = generateShoppingListText();
@@ -1772,68 +2167,125 @@ function renderRecipeBook() {
 
 window.openPreferencesModal = function(isOnboarding = false) {
   const modal = document.getElementById('modal-preferences');
+  const tabsContainer = document.getElementById('child-tabs-container');
   const checklistContainer = document.getElementById('preferences-dislikes-list');
   const modalTitle = document.getElementById('modal-preferences-title');
   const modalSubtitle = document.getElementById('modal-preferences-subtitle');
+  const modalServings = document.getElementById('modal-servings-select');
+  const modalChildrenCount = document.getElementById('modal-children-count-select');
+
+  if (!modal) return;
 
   if (isOnboarding) {
-    modalTitle.innerHTML = `👶 お子様ごとの好み・苦手設定`;
-    modalSubtitle.textContent = `子供が苦手な食材や味付けを除外して、みんなが満足できる節約献立を作成します。（後から変更可能）`;
+    modalTitle.innerHTML = `👶 ご家族の人数とお子様の好み設定`;
+    modalSubtitle.textContent = `お子様が苦手な食材や味付けを除外して、みんなが喜ぶ節約献立を作成します。（後からいつでも変更可能）`;
+  } else {
+    modalTitle.innerHTML = `👶 ご家族の人数とお子様の好み設定`;
+    modalSubtitle.textContent = `苦手な食材や味付けを除外し、可能な場合は同じ材料で別メニューを提案します。`;
   }
 
-  // Setup tabs
-  document.querySelectorAll('[data-child-tab]').forEach(btn => {
-    btn.className = 'flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-white border-b-2 border-transparent transition-colors';
-    if (btn.getAttribute('data-child-tab') === state.activeChildTab) {
-      btn.className = 'flex-1 py-3 text-sm font-bold text-emerald-700 border-b-2 border-emerald-600 bg-white';
-    }
-    btn.onclick = () => {
-      state.activeChildTab = btn.getAttribute('data-child-tab');
-      window.openPreferencesModal();
-    };
-  });
-
-  const currentPref = state.childrenPreferences[state.activeChildTab];
-
-  let html = `<div class="col-span-full text-xs font-bold text-slate-500 mt-2">食材</div>`;
-  html += COMMON_DISLIKES.map(item => {
-    const isChecked = currentPref.dislikes.includes(item.id);
-    return `
-      <label class="flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold' : 'bg-slate-50/70 border-slate-200 text-slate-700 hover:bg-slate-100'}">
-        <input type="checkbox" 
-               class="w-5 h-5 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer"
-               value="${item.id}" 
-               data-type="ingredient"
-               ${isChecked ? 'checked' : ''} 
-               onchange="handleDislikeToggle(this)">
-        <span class="text-xl">${item.icon}</span>
-        <span class="text-sm">${item.label}</span>
-      </label>
-    `;
-  }).join('');
-
-  html += `<div class="col-span-full text-xs font-bold text-slate-500 mt-4 border-t pt-4">味付け・その他</div>`;
-  html += COMMON_FLAVORS.map(item => {
-    const isChecked = currentPref.disabledFlavors.includes(item.id);
-    return `
-      <label class="flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold' : 'bg-slate-50/70 border-slate-200 text-slate-700 hover:bg-slate-100'}">
-        <input type="checkbox" 
-               class="w-5 h-5 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer"
-               value="${item.id}" 
-               data-type="flavor"
-               ${isChecked ? 'checked' : ''} 
-               onchange="handleDislikeToggle(this)">
-        <span class="text-xl">${item.icon}</span>
-        <span class="text-sm">${item.label}</span>
-      </label>
-    `;
-  }).join('');
-
-  checklistContainer.innerHTML = html;
-
-  const modalServings = document.getElementById('modal-servings-select');
   if (modalServings) {
     modalServings.value = state.servings;
+  }
+
+  if (modalChildrenCount) {
+    modalChildrenCount.value = state.childrenCount;
+    modalChildrenCount.onchange = (e) => {
+      state.childrenCount = parseInt(e.target.value, 10);
+      if (state.childrenCount > 0 && !state.activeChildTab) {
+        state.activeChildTab = 'child1';
+      }
+      openPreferencesModal(isOnboarding);
+    };
+  }
+
+  // お子様人数に応じたタブ生成
+  if (tabsContainer) {
+    if (state.childrenCount === 0) {
+      tabsContainer.innerHTML = `
+        <div class="w-full py-2.5 px-4 text-xs font-bold text-teal-800 bg-teal-50 flex items-center justify-center gap-1.5">
+          <span>🌿</span>
+          <span>大人・夫婦のみモード（お子様なし）</span>
+        </div>
+      `;
+    } else {
+      let tabsHtml = '';
+      for (let i = 1; i <= state.childrenCount; i++) {
+        const childKey = `child${i}`;
+        const isActive = state.activeChildTab === childKey;
+        tabsHtml += `
+          <button data-child-tab="${childKey}" 
+                  onclick="selectChildTab('${childKey}')"
+                  class="flex-1 py-3 text-xs sm:text-sm font-bold transition-all border-b-2 whitespace-nowrap px-3 cursor-pointer ${
+                    isActive 
+                      ? 'text-teal-700 border-teal-600 bg-white shadow-2xs' 
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-white border-transparent'
+                  }">
+            子供${i}
+          </button>
+        `;
+      }
+      tabsContainer.innerHTML = tabsHtml;
+    }
+  }
+
+  // チェックリストまたは0人向け案内の描画
+  if (checklistContainer) {
+    if (state.childrenCount === 0) {
+      checklistContainer.innerHTML = `
+        <div class="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-2">
+          <span class="text-3xl block">🍷✨</span>
+          <h4 class="font-bold text-slate-800 text-sm">お子様設定なし（大人向け自由献立）</h4>
+          <p class="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
+            お子様の苦手食材による制限を行わず、お肉・魚・旬野菜を使ったバラエティ豊かな節約レシピを優先して生成します。
+          </p>
+        </div>
+      `;
+    } else {
+      // 現在のタブが存在しない場合は child1 に合わせる
+      const currentChildNum = parseInt(state.activeChildTab.replace('child', ''), 10) || 1;
+      if (currentChildNum > state.childrenCount) {
+        state.activeChildTab = 'child1';
+      }
+
+      const currentPref = state.childrenPreferences[state.activeChildTab] || { dislikes: [], disabledFlavors: [] };
+
+      let html = `<div class="col-span-full text-xs font-black text-slate-600 mt-1 flex items-center gap-1.5"><span>🥬</span><span>苦手な食材（タップで除外）</span></div>`;
+      html += COMMON_DISLIKES.map(item => {
+        const isChecked = currentPref.dislikes.includes(item.id);
+        return `
+          <label class="flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold' : 'bg-slate-50/70 border-slate-200 text-slate-700 hover:bg-slate-100'}">
+            <input type="checkbox" 
+                   class="w-5 h-5 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer accent-amber-600"
+                   value="${item.id}" 
+                   data-type="ingredient"
+                   ${isChecked ? 'checked' : ''} 
+                   onchange="handleDislikeToggle(this)">
+            <span class="text-xl">${item.icon}</span>
+            <span class="text-sm">${item.label}</span>
+          </label>
+        `;
+      }).join('');
+
+      html += `<div class="col-span-full text-xs font-black text-slate-600 mt-4 border-t pt-4 flex items-center gap-1.5"><span>🌶️</span><span>苦手な味付け・その他</span></div>`;
+      html += COMMON_FLAVORS.map(item => {
+        const isChecked = currentPref.disabledFlavors.includes(item.id);
+        return `
+          <label class="flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold' : 'bg-slate-50/70 border-slate-200 text-slate-700 hover:bg-slate-100'}">
+            <input type="checkbox" 
+                   class="w-5 h-5 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer accent-amber-600"
+                   value="${item.id}" 
+                   data-type="flavor"
+                   ${isChecked ? 'checked' : ''} 
+                   onchange="handleDislikeToggle(this)">
+            <span class="text-xl">${item.icon}</span>
+            <span class="text-sm">${item.label}</span>
+          </label>
+        `;
+      }).join('');
+
+      checklistContainer.innerHTML = html;
+    }
   }
 
   modal.classList.remove('hidden');
@@ -1841,9 +2293,17 @@ window.openPreferencesModal = function(isOnboarding = false) {
   safeCreateIcons();
 };
 
+window.selectChildTab = function(childKey) {
+  state.activeChildTab = childKey;
+  openPreferencesModal(false);
+};
+
 window.handleDislikeToggle = function(checkbox) {
   const val = checkbox.value;
   const type = checkbox.getAttribute('data-type');
+  if (!state.childrenPreferences[state.activeChildTab]) {
+    state.childrenPreferences[state.activeChildTab] = { dislikes: [], disabledFlavors: [] };
+  }
   const currentPref = state.childrenPreferences[state.activeChildTab];
 
   if (type === 'ingredient') {
@@ -1876,15 +2336,27 @@ window.savePreferencesAndGenerate = function() {
       if (budgetInput) budgetInput.value = state.targetBudget;
     }
   }
+
+  const modalChildrenCount = document.getElementById('modal-children-count-select');
+  if (modalChildrenCount) {
+    state.childrenCount = parseInt(modalChildrenCount.value, 10);
+    localStorage.setItem(STORAGE_KEY_CHILDREN_COUNT, state.childrenCount);
+  }
+
   saveChildrenPreferences();
   saveOnboarding();
   state.hasCompletedOnboarding = true;
   closePreferencesModal();
   generateRandomWeeklyPlan(true);
+
+  if (state.familySyncCode) {
+    pushSyncDataDebounced();
+  }
 };
 
 window.closePreferencesModal = function() {
   const modal = document.getElementById('modal-preferences');
+  if (!modal) return;
   modal.classList.add('hidden');
   modal.classList.remove('flex');
 };
@@ -2107,6 +2579,10 @@ window.selectAlternativeRecipe = function(newRecipeId) {
   renderShoppingList();
   updateSummaryBadge();
   showToast('メニューを変更しました');
+
+  if (state.familySyncCode) {
+    pushSyncDataDebounced();
+  }
 };
 
 window.closeChangeModal = function() {
