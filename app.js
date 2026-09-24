@@ -1100,39 +1100,9 @@ function closeFeedbackModal() {
 window.closeFeedbackModal = closeFeedbackModal;
 
 // ==================== 家族共有（B案: 自動生成コード+QR、C案: 復帰時+手動更新） ====================
-// 無料・登録不要・CORS対応のクラウドAPI + URL直載せハイブリッド同期
-const SYNC_API_BASE = 'https://api.restful-api.dev/objects';
+// 無料・登録不要・コード直接キーアクセスのクラウドKVS (KVdb.io)
+const SYNC_API_BASE = 'https://kvdb.io/Fo4UXYeKJ2kqv6FWFKXyQa';
 const SYNC_CODE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // 0, O, 1, I を完全除外した32文字
-
-// URL共有用軽量データのエンコード（UTF-8文字列 -> URLセーフBase64）
-function encodeSharePayload(obj) {
-  try {
-    const jsonStr = JSON.stringify(obj);
-    const base64 = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => {
-      return String.fromCharCode('0x' + p1);
-    }));
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  } catch (e) {
-    console.error('Payload encode error:', e);
-    return '';
-  }
-}
-
-// URL共有用軽量データのデコード（URLセーフBase64 -> オブジェクト）
-function decodeSharePayload(str) {
-  try {
-    if (!str) return null;
-    let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
-    while (b64.length % 4) b64 += '=';
-    const jsonStr = decodeURIComponent(Array.prototype.map.call(atob(b64), c => {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    console.warn('Payload decode error:', e);
-    return null;
-  }
-}
 
 // 6桁コード生成
 function generate6DigitCode() {
@@ -1143,8 +1113,13 @@ function generate6DigitCode() {
   return code;
 }
 
-// コードの衝突回避付き生成
+// コードの衝突回避付き生成（既存チェック付き）
 async function generateUniqueFamilyCode() {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const code = generate6DigitCode();
+    const existing = await fetchSyncData(code);
+    if (!existing) return code;
+  }
   return generate6DigitCode();
 }
 
@@ -1154,21 +1129,10 @@ function normalizeFamilyCode(code) {
   return code.trim().toUpperCase().replace(/[\s-]/g, '');
 }
 
-// 共有URLの生成（URL直載せデータ + クラウドIDで100%確実に相手に伝達）
+// 共有URLの生成（URLが約70文字と極短いため、QRコードのドットが大きく粗く、スマホカメラで一瞬で読み取れる）
 function getFamilyShareUrl(code) {
   const base = 'https://fi1025re-commits.github.io/frugal-meal-planner/';
-  const payload = {
-    c: code,
-    s: state.servings,
-    b: state.targetBudget,
-    k: state.childrenCount,
-    p: state.childrenPreferences,
-    w: state.weeklyPlan,
-    ck: state.checkedItems
-  };
-  const d = encodeSharePayload(payload);
-  const sid = state.syncDocId || '';
-  return `${base}?family=${encodeURIComponent(code)}&sid=${encodeURIComponent(sid)}&d=${d}`;
+  return `${base}?family=${encodeURIComponent(normalizeFamilyCode(code))}`;
 }
 
 // 最終更新時刻の文字列生成
@@ -1205,63 +1169,38 @@ function getSyncPayload() {
   };
 }
 
-// リモートから最新データ取得
+// リモートから最新データ取得（コードをキーにしてKVdbから直接GET）
 async function fetchSyncData(code) {
-  if (!state.syncDocId) return null;
+  const cleanCode = normalizeFamilyCode(code);
+  if (!cleanCode) return null;
   try {
-    const res = await fetch(`${SYNC_API_BASE}/${state.syncDocId}`);
+    const res = await fetch(`${SYNC_API_BASE}/${cleanCode}`);
     if (!res.ok) return null;
-    const item = await res.json();
-    return item ? item.data : null;
+    return await res.json();
   } catch (err) {
     console.warn('Sync fetch warning:', err);
     return null;
   }
 }
 
-// リモートへデータ全プッシュ（新規作成時はPOST、更新時はPUT）
+// リモートへデータ全プッシュ（コードをキーにしてKVdbに直接PUT保存）
 async function pushSyncData(code) {
-  if (!code) return false;
   const cleanCode = normalizeFamilyCode(code);
+  if (!cleanCode) return false;
   const payload = getSyncPayload();
-  const requestBody = {
-    name: 'frugal_family_' + cleanCode,
-    data: payload
-  };
 
   try {
     updateSyncStatusUI('syncing');
-    if (state.syncDocId) {
-      // 既存オブジェクトの更新 (PUT)
-      const res = await fetch(`${SYNC_API_BASE}/${state.syncDocId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
-      if (res.ok) {
-        state.lastSyncTime = payload.updatedAt;
-        updateLastUpdatedDisplay(state.lastSyncTime);
-        updateSyncStatusUI('connected');
-        return true;
-      }
-    } else {
-      // 新規オブジェクトの作成 (POST)
-      const res = await fetch(SYNC_API_BASE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
-      if (res.ok) {
-        const created = await res.json();
-        if (created && created.id) {
-          state.syncDocId = created.id;
-          localStorage.setItem(STORAGE_KEY_SYNC_DOC_ID, created.id);
-        }
-        state.lastSyncTime = payload.updatedAt;
-        updateLastUpdatedDisplay(state.lastSyncTime);
-        updateSyncStatusUI('connected');
-        return true;
-      }
+    const res = await fetch(`${SYNC_API_BASE}/${cleanCode}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      state.lastSyncTime = payload.updatedAt;
+      updateLastUpdatedDisplay(state.lastSyncTime);
+      updateSyncStatusUI('connected');
+      return true;
     }
   } catch (err) {
     console.warn('Sync push warning:', err);
@@ -1427,7 +1366,7 @@ function renderSyncModalContent() {
   if (state.familySyncCode) {
     // ===== 共有中 =====
     const shareUrl = getFamilyShareUrl(state.familySyncCode);
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(shareUrl)}`;
 
     container.innerHTML = `
       <!-- 共有コード表示カード -->
@@ -1439,22 +1378,24 @@ function renderSyncModalContent() {
             <i data-lucide="copy" class="w-4 h-4"></i>
           </button>
         </div>
-        <p class="text-[10px] text-indigo-500 mt-1">※見間違いを防ぐため、数字の「0」「1」や英字の「O」「I」は使用していません</p>
+        <p class="text-[10px] text-indigo-500 mt-1">※見間違い防止のため「0」「1」「O」「I」は使用していません</p>
       </div>
 
       <!-- QRコード参加エリア -->
       <div class="bg-white border border-slate-200 rounded-2xl p-4 text-center">
-        <h4 class="font-bold text-slate-800 text-xs mb-2">相手のスマホカメラで読み取るだけ！</h4>
+        <h4 class="font-bold text-slate-800 text-xs mb-1">📷 相手のスマホカメラで読み取るだけ！</h4>
+        <p class="text-[11px] text-slate-500 mb-2">読み取ると確認画面なしで自動的に共有が始まります</p>
         <div class="flex justify-center my-2">
-          <div class="p-2 bg-white rounded-xl shadow-xs border border-slate-200">
-            <img src="${qrUrl}" alt="共有用QRコード" class="w-36 h-36 mx-auto block" loading="lazy">
+          <div class="p-2 bg-white rounded-2xl shadow-sm border border-slate-200 inline-block">
+            <img src="${qrUrl}" alt="共有用QRコード" class="w-44 h-44 mx-auto block" loading="lazy">
           </div>
         </div>
-        <p class="text-[11px] text-slate-500 mt-1">読み取ると確認画面なしで自動的に共有が始まります</p>
-        <button onclick="copyShareUrl()" class="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 active:scale-95 cursor-pointer">
-          <i data-lucide="link" class="w-3.5 h-3.5"></i>
-          <span>共有リンクをコピー</span>
-        </button>
+        <div class="mt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
+          <button onclick="copyShareUrl()" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors border border-indigo-200 active:scale-95 cursor-pointer">
+            <i data-lucide="link" class="w-3.5 h-3.5"></i>
+            <span>共有リンクをコピー（LINE等で送る）</span>
+          </button>
+        </div>
       </div>
 
       <!-- 更新状態＆手動更新ボタン -->
@@ -1469,11 +1410,23 @@ function renderSyncModalContent() {
         </button>
       </div>
 
+      <!-- 別の家族の共有コードを入力して参加する枠 -->
+      <div class="bg-slate-50/80 border border-slate-200 rounded-2xl p-3.5">
+        <label for="input-join-code-active" class="block font-bold text-slate-800 mb-1.5 text-xs">👥 別の家族コードを入力して参加</label>
+        <div class="flex gap-2">
+          <input type="text" id="input-join-code-active" placeholder="例: 8AB4YZ" maxlength="8" class="flex-1 border-2 border-indigo-200 rounded-xl px-3 py-2 text-slate-900 font-black text-base focus:ring-2 focus:ring-indigo-400 uppercase tracking-widest text-center bg-white" onkeydown="if(event.key==='Enter') handleManualJoinActiveSubmit()">
+          <button onclick="handleManualJoinActiveSubmit()" class="px-4 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm cursor-pointer active:scale-95 shrink-0">
+            参加する
+          </button>
+        </div>
+        <p class="text-[10px] text-slate-500 mt-1">※相手のコードを入力すると、相手の献立や予算に即座に切り替わります</p>
+      </div>
+
       <!-- 共有管理ボタン群（再発行・離脱） -->
       <div class="pt-2 border-t border-slate-100">
         <div class="flex items-center justify-between">
           <button onclick="regenerateFamilySyncCode()" class="text-[11px] text-slate-500 hover:text-indigo-600 font-bold underline cursor-pointer">
-            🔄 共有コードを再発行
+            🔄 新しいコードを発行
           </button>
           <button onclick="leaveFamilySync()" class="text-[11px] text-rose-500 hover:text-rose-700 font-bold underline cursor-pointer">
             🚪 共有から抜ける
@@ -1503,16 +1456,16 @@ function renderSyncModalContent() {
         <div class="flex-grow border-t border-slate-200"></div>
       </div>
 
-      <!-- 予備: 手入力で参加 -->
-      <div>
-        <label for="input-join-code" class="block font-bold text-slate-700 mb-1.5 text-xs">家族の共有コードを入力して参加</label>
+      <!-- 手入力で参加 -->
+      <div class="bg-white border-2 border-indigo-100 rounded-2xl p-3.5">
+        <label for="input-join-code" class="block font-bold text-slate-800 mb-1.5 text-xs">👥 家族の共有コードを入力して参加</label>
         <div class="flex gap-2">
-          <input type="text" id="input-join-code" placeholder="例: 8AB4YZ" maxlength="8" class="flex-1 border-2 border-indigo-200 rounded-xl px-3 py-2 text-slate-900 font-black text-sm focus:ring-2 focus:ring-indigo-400 uppercase tracking-widest text-center">
-          <button onclick="handleManualJoinSubmit()" class="px-4 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm cursor-pointer active:scale-95 shrink-0">
+          <input type="text" id="input-join-code" placeholder="例: 8AB4YZ" maxlength="8" class="flex-1 border-2 border-indigo-200 rounded-xl px-3 py-2 text-slate-900 font-black text-base focus:ring-2 focus:ring-indigo-400 uppercase tracking-widest text-center" onkeydown="if(event.key==='Enter') handleManualJoinSubmit()">
+          <button onclick="handleManualJoinSubmit()" class="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm cursor-pointer active:scale-95 shrink-0">
             参加する
           </button>
         </div>
-        <p class="text-[10px] text-slate-400 mt-1">※相手のスマホで表示されたQRコードをカメラで読み取るか、LINE等で「共有リンク」を開く方法が最も簡単で確実です</p>
+        <p class="text-[10px] text-slate-500 mt-1.5">※相手のスマホカメラでQRコードを読み取るか、LINE等で「共有リンク」を開く方法でも瞬時に参加できます</p>
       </div>
     `;
   }
@@ -1543,20 +1496,30 @@ window.copyShareUrl = function() {
 // 新規共有コードを発行して共有開始
 window.startFamilySharing = async function() {
   showToast('共有コードを発行中...');
-  const newCode = generate6DigitCode();
+  const newCode = await generateUniqueFamilyCode();
   state.familySyncCode = newCode;
-  state.syncDocId = '';
   localStorage.setItem(STORAGE_KEY_SYNC_CODE, newCode);
-  localStorage.removeItem(STORAGE_KEY_SYNC_DOC_ID);
   await pushSyncData(newCode);
   updateSyncStatusUI('connected');
   renderSyncModalContent();
   showToast(`家族共有コード【${newCode}】を発行しました！`);
 };
 
-// 手入力による参加
+// 手入力による参加（未共有画面）
 window.handleManualJoinSubmit = async function() {
   const input = document.getElementById('input-join-code');
+  const rawCode = input ? input.value : '';
+  const cleanCode = normalizeFamilyCode(rawCode);
+  if (!cleanCode || cleanCode.length < 4) {
+    showToast('共有コードを入力してください');
+    return;
+  }
+  await joinFamilyByCode(cleanCode, true);
+};
+
+// 手入力による参加（共有中画面の切り替え）
+window.handleManualJoinActiveSubmit = async function() {
+  const input = document.getElementById('input-join-code-active');
   const rawCode = input ? input.value : '';
   const cleanCode = normalizeFamilyCode(rawCode);
   if (!cleanCode || cleanCode.length < 4) {
@@ -1572,15 +1535,16 @@ async function joinFamilyByCode(code, showFeedback = true) {
   if (!cleanCode) return;
 
   if (showFeedback) showToast('共有グループに接続中...');
-  state.familySyncCode = cleanCode;
-  localStorage.setItem(STORAGE_KEY_SYNC_CODE, cleanCode);
-
   const remoteData = await fetchSyncData(cleanCode);
 
   if (remoteData && remoteData.weeklyPlan) {
+    state.familySyncCode = cleanCode;
+    localStorage.setItem(STORAGE_KEY_SYNC_CODE, cleanCode);
     applyRemoteData(remoteData, !showFeedback);
     if (showFeedback) showToast(`共有コード【${cleanCode}】に参加し、献立を同期しました！`);
   } else {
+    state.familySyncCode = cleanCode;
+    localStorage.setItem(STORAGE_KEY_SYNC_CODE, cleanCode);
     await pushSyncData(cleanCode);
     if (showFeedback) showToast(`共有コード【${cleanCode}】に参加しました！`);
   }
