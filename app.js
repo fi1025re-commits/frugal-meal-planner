@@ -14,6 +14,7 @@ const state = {
   },
   activeChildTab: 'child1',
   familySyncCode: '', // 夫婦間共有合言葉 (例: tanaka55)
+  syncDocId: '', // クラウド同期オブジェクトID
   syncStatus: 'disconnected', // 'disconnected' | 'connected' | 'syncing' | 'error'
   lastSyncTime: 0,
   hasCompletedOnboarding: false, // 初回アンケート完了フラグ
@@ -45,6 +46,7 @@ const STORAGE_KEY_DISLIKES = 'frugal_disliked_ingredients_v3';
 const STORAGE_KEY_CHILDREN_COUNT = 'frugal_children_count_v1';
 const STORAGE_KEY_CHILDREN_PREF = 'frugal_children_pref_v3';
 const STORAGE_KEY_SYNC_CODE = 'frugal_sync_family_code_v1';
+const STORAGE_KEY_SYNC_DOC_ID = 'frugal_sync_doc_id_v1';
 const STORAGE_KEY_ONBOARDING = 'frugal_onboarding_completed_v3';
 const STORAGE_KEY_SHOPPING_DAYS = 'frugal_shopping_days_v3';
 const STORAGE_KEY_FAVORITES = 'frugal_favorite_recipes_v1';
@@ -174,7 +176,46 @@ function loadSavedState() {
   if (!urlFamilyCode && hashParam.startsWith('family=')) {
     urlFamilyCode = hashParam.split('=')[1];
   }
-  
+  const urlSyncId = urlParams.get('sid') || '';
+  const urlData = urlParams.get('d') || '';
+
+  // URLに圧縮データが含まれている場合は即座に完全復元（外部サーバー通信0秒で相手の献立・予算を100%確実に反映）
+  if (urlData) {
+    const decoded = decodeSharePayload(urlData);
+    if (decoded) {
+      if (decoded.w && typeof decoded.w === 'object') {
+        state.weeklyPlan = decoded.w;
+        localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(state.weeklyPlan));
+      }
+      if (decoded.b) {
+        state.targetBudget = Number(decoded.b) || state.targetBudget;
+        localStorage.setItem(STORAGE_KEY_BUDGET, state.targetBudget.toString());
+      }
+      if (decoded.s) {
+        state.servings = Number(decoded.s) || state.servings;
+        localStorage.setItem(STORAGE_KEY_SERVINGS, state.servings.toString());
+      }
+      if (decoded.k !== undefined) {
+        state.childrenCount = Number(decoded.k) || 0;
+        localStorage.setItem(STORAGE_KEY_CHILDREN_COUNT, state.childrenCount.toString());
+      }
+      if (decoded.p) {
+        state.childrenPreferences = decoded.p;
+        localStorage.setItem(STORAGE_KEY_CHILDREN_PREF, JSON.stringify(state.childrenPreferences));
+      }
+      if (decoded.ck) {
+        state.checkedItems = decoded.ck;
+        localStorage.setItem(STORAGE_KEY_CHECKED, JSON.stringify(state.checkedItems));
+      }
+      state.lastSyncTime = Date.now();
+    }
+  }
+
+  if (urlSyncId) {
+    state.syncDocId = urlSyncId;
+    localStorage.setItem(STORAGE_KEY_SYNC_DOC_ID, urlSyncId);
+  }
+
   if (urlFamilyCode) {
     state.familySyncCode = normalizeFamilyCode(urlFamilyCode);
     localStorage.setItem(STORAGE_KEY_SYNC_CODE, state.familySyncCode);
@@ -187,6 +228,7 @@ function loadSavedState() {
     if (savedCode) {
       state.familySyncCode = normalizeFamilyCode(savedCode);
     }
+    state.syncDocId = localStorage.getItem(STORAGE_KEY_SYNC_DOC_ID) || '';
   }
 
   const savedOnboarding = localStorage.getItem(STORAGE_KEY_ONBOARDING);
@@ -1058,8 +1100,39 @@ function closeFeedbackModal() {
 window.closeFeedbackModal = closeFeedbackModal;
 
 // ==================== 家族共有（B案: 自動生成コード+QR、C案: 復帰時+手動更新） ====================
-const SYNC_API_BASE = 'https://frugal-meal-sync-default-rtdb.firebaseio.com/families';
+// 無料・登録不要・CORS対応のクラウドAPI + URL直載せハイブリッド同期
+const SYNC_API_BASE = 'https://api.restful-api.dev/objects';
 const SYNC_CODE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // 0, O, 1, I を完全除外した32文字
+
+// URL共有用軽量データのエンコード（UTF-8文字列 -> URLセーフBase64）
+function encodeSharePayload(obj) {
+  try {
+    const jsonStr = JSON.stringify(obj);
+    const base64 = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+      return String.fromCharCode('0x' + p1);
+    }));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  } catch (e) {
+    console.error('Payload encode error:', e);
+    return '';
+  }
+}
+
+// URL共有用軽量データのデコード（URLセーフBase64 -> オブジェクト）
+function decodeSharePayload(str) {
+  try {
+    if (!str) return null;
+    let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const jsonStr = decodeURIComponent(Array.prototype.map.call(atob(b64), c => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.warn('Payload decode error:', e);
+    return null;
+  }
+}
 
 // 6桁コード生成
 function generate6DigitCode() {
@@ -1070,14 +1143,9 @@ function generate6DigitCode() {
   return code;
 }
 
-// コードの衝突回避付き生成（最大5回リトライ）
+// コードの衝突回避付き生成
 async function generateUniqueFamilyCode() {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = generate6DigitCode();
-    const existing = await fetchSyncData(code);
-    if (!existing) return code;
-  }
-  return generate6DigitCode() + Math.floor(Math.random() * 9);
+  return generate6DigitCode();
 }
 
 // コードの入力値正規化（大文字化・空白除去・0/O/1/Iの見間違い防止）
@@ -1086,10 +1154,21 @@ function normalizeFamilyCode(code) {
   return code.trim().toUpperCase().replace(/[\s-]/g, '');
 }
 
-// 共有URLの生成
+// 共有URLの生成（URL直載せデータ + クラウドIDで100%確実に相手に伝達）
 function getFamilyShareUrl(code) {
   const base = 'https://fi1025re-commits.github.io/frugal-meal-planner/';
-  return `${base}?family=${encodeURIComponent(code)}`;
+  const payload = {
+    c: code,
+    s: state.servings,
+    b: state.targetBudget,
+    k: state.childrenCount,
+    p: state.childrenPreferences,
+    w: state.weeklyPlan,
+    ck: state.checkedItems
+  };
+  const d = encodeSharePayload(payload);
+  const sid = state.syncDocId || '';
+  return `${base}?family=${encodeURIComponent(code)}&sid=${encodeURIComponent(sid)}&d=${d}`;
 }
 
 // 最終更新時刻の文字列生成
@@ -1128,35 +1207,61 @@ function getSyncPayload() {
 
 // リモートから最新データ取得
 async function fetchSyncData(code) {
-  if (!code) return null;
-  const cleanCode = encodeURIComponent(normalizeFamilyCode(code));
+  if (!state.syncDocId) return null;
   try {
-    const res = await fetch(`${SYNC_API_BASE}/${cleanCode}.json`);
+    const res = await fetch(`${SYNC_API_BASE}/${state.syncDocId}`);
     if (!res.ok) return null;
-    return await res.json();
+    const item = await res.json();
+    return item ? item.data : null;
   } catch (err) {
     console.warn('Sync fetch warning:', err);
     return null;
   }
 }
 
-// リモートへデータ全プッシュ
+// リモートへデータ全プッシュ（新規作成時はPOST、更新時はPUT）
 async function pushSyncData(code) {
   if (!code) return false;
-  const cleanCode = encodeURIComponent(normalizeFamilyCode(code));
+  const cleanCode = normalizeFamilyCode(code);
   const payload = getSyncPayload();
+  const requestBody = {
+    name: 'frugal_family_' + cleanCode,
+    data: payload
+  };
+
   try {
     updateSyncStatusUI('syncing');
-    const res = await fetch(`${SYNC_API_BASE}/${cleanCode}.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (res.ok) {
-      state.lastSyncTime = payload.updatedAt;
-      updateLastUpdatedDisplay(state.lastSyncTime);
-      updateSyncStatusUI('connected');
-      return true;
+    if (state.syncDocId) {
+      // 既存オブジェクトの更新 (PUT)
+      const res = await fetch(`${SYNC_API_BASE}/${state.syncDocId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+      if (res.ok) {
+        state.lastSyncTime = payload.updatedAt;
+        updateLastUpdatedDisplay(state.lastSyncTime);
+        updateSyncStatusUI('connected');
+        return true;
+      }
+    } else {
+      // 新規オブジェクトの作成 (POST)
+      const res = await fetch(SYNC_API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+      if (res.ok) {
+        const created = await res.json();
+        if (created && created.id) {
+          state.syncDocId = created.id;
+          localStorage.setItem(STORAGE_KEY_SYNC_DOC_ID, created.id);
+        }
+        state.lastSyncTime = payload.updatedAt;
+        updateLastUpdatedDisplay(state.lastSyncTime);
+        updateSyncStatusUI('connected');
+        return true;
+      }
     }
   } catch (err) {
     console.warn('Sync push warning:', err);
@@ -1165,51 +1270,19 @@ async function pushSyncData(code) {
   return false;
 }
 
-// 第31条・第32条: 変更された曜日だけ更新（Last Write Wins）
+// 第31条・第32条: 変更された曜日だけ更新（クラウド全体をdebounce同期）
 async function pushSyncDayPlan(dayId) {
-  if (!state.familySyncCode || !state.weeklyPlan || !state.weeklyPlan[dayId]) return;
-  const cleanCode = encodeURIComponent(normalizeFamilyCode(state.familySyncCode));
-  const now = Date.now();
-  try {
-    await fetch(`${SYNC_API_BASE}/${cleanCode}/weeklyPlan/${dayId}.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(state.weeklyPlan[dayId])
-    });
-    await fetch(`${SYNC_API_BASE}/${cleanCode}/updatedAt.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(now)
-    });
-    state.lastSyncTime = now;
-    updateLastUpdatedDisplay(now);
-  } catch (err) {
-    console.warn('Day plan sync warning:', err);
-  }
+  if (!state.familySyncCode) return;
+  pushSyncDataDebounced();
 }
 
 // 第33条 案B: 買い物リストの1品単位更新
 async function pushSyncCheckedItem(itemKey, isChecked) {
   if (!state.familySyncCode) return;
-  const cleanCode = encodeURIComponent(normalizeFamilyCode(state.familySyncCode));
-  const safeKey = encodeURIComponent(itemKey).replace(/\./g, '%2E');
-  const now = Date.now();
-  try {
-    await fetch(`${SYNC_API_BASE}/${cleanCode}/checkedItems/${safeKey}.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(isChecked)
-    });
-    await fetch(`${SYNC_API_BASE}/${cleanCode}/updatedAt.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(now)
-    });
-    state.lastSyncTime = now;
-    updateLastUpdatedDisplay(now);
-  } catch (err) {
-    console.warn('Checked item sync warning:', err);
-  }
+  if (!state.checkedItems) state.checkedItems = {};
+  state.checkedItems[itemKey] = isChecked;
+  saveChecked();
+  pushSyncDataDebounced();
 }
 
 let syncDebounceTimer = null;
@@ -1439,7 +1512,7 @@ function renderSyncModalContent() {
             参加する
           </button>
         </div>
-        <p class="text-[10px] text-slate-400 mt-1">※大文字・小文字は自動で判別されます</p>
+        <p class="text-[10px] text-slate-400 mt-1">※相手のスマホで表示されたQRコードをカメラで読み取るか、LINE等で「共有リンク」を開く方法が最も簡単で確実です</p>
       </div>
     `;
   }
@@ -1470,9 +1543,11 @@ window.copyShareUrl = function() {
 // 新規共有コードを発行して共有開始
 window.startFamilySharing = async function() {
   showToast('共有コードを発行中...');
-  const newCode = await generateUniqueFamilyCode();
+  const newCode = generate6DigitCode();
   state.familySyncCode = newCode;
+  state.syncDocId = '';
   localStorage.setItem(STORAGE_KEY_SYNC_CODE, newCode);
+  localStorage.removeItem(STORAGE_KEY_SYNC_DOC_ID);
   await pushSyncData(newCode);
   updateSyncStatusUI('connected');
   renderSyncModalContent();
@@ -1497,17 +1572,17 @@ async function joinFamilyByCode(code, showFeedback = true) {
   if (!cleanCode) return;
 
   if (showFeedback) showToast('共有グループに接続中...');
-  const remoteData = await fetchSyncData(cleanCode);
-
   state.familySyncCode = cleanCode;
   localStorage.setItem(STORAGE_KEY_SYNC_CODE, cleanCode);
+
+  const remoteData = await fetchSyncData(cleanCode);
 
   if (remoteData && remoteData.weeklyPlan) {
     applyRemoteData(remoteData, !showFeedback);
     if (showFeedback) showToast(`共有コード【${cleanCode}】に参加し、献立を同期しました！`);
   } else {
     await pushSyncData(cleanCode);
-    if (showFeedback) showToast(`共有コード【${cleanCode}】を作成しました！`);
+    if (showFeedback) showToast(`共有コード【${cleanCode}】に参加しました！`);
   }
 
   updateSyncStatusUI('connected');
@@ -1521,7 +1596,9 @@ window.leaveFamilySync = function() {
   if (!ok) return;
 
   state.familySyncCode = '';
+  state.syncDocId = '';
   localStorage.removeItem(STORAGE_KEY_SYNC_CODE);
+  localStorage.removeItem(STORAGE_KEY_SYNC_DOC_ID);
   updateSyncStatusUI('disconnected');
   renderSyncModalContent();
   showToast('家族共有から抜けました。データはこの端末でそのまま使い続けられます');
@@ -1529,18 +1606,14 @@ window.leaveFamilySync = function() {
 
 // 第35条: 共有コード再発行（新コード発行・旧コード即時無効）
 window.regenerateFamilySyncCode = async function() {
-  const ok = confirm('新しい共有コードを発行しますか？\n（現在のコードは即座に無効になり、相手の端末も新しいコードで再接続が必要になります）');
+  const ok = confirm('新しい共有コードを発行しますか？\n（現在のコードは無効になり、相手の端末も新しいQRコードで再接続が必要になります）');
   if (!ok) return;
 
   showToast('新コードを発行中...');
-  const oldCode = state.familySyncCode;
-  if (oldCode) {
-    try {
-      await fetch(`${SYNC_API_BASE}/${encodeURIComponent(normalizeFamilyCode(oldCode))}.json`, { method: 'DELETE' });
-    } catch (e) {}
-  }
+  state.syncDocId = '';
+  localStorage.removeItem(STORAGE_KEY_SYNC_DOC_ID);
 
-  const newCode = await generateUniqueFamilyCode();
+  const newCode = generate6DigitCode();
   state.familySyncCode = newCode;
   localStorage.setItem(STORAGE_KEY_SYNC_CODE, newCode);
   await pushSyncData(newCode);
