@@ -47,9 +47,8 @@
   <script>
     const host = window.location.hostname;
     const port = window.location.port || '8080';
-    // If hostname is localhost or 127.0.0.1, try fetching the server info or fall back to known IP
-    let targetHost = host === 'localhost' || host === '127.0.0.1' ? '192.168.3.181' : host;
-    const targetUrl = `http://${targetHost}:${port}/`;
+    let targetHost = host === 'localhost' || host === '127.0.0.1' ? 'fi1025re-commits.github.io/frugal-meal-planner' : host;
+    const targetUrl = host === 'localhost' || host === '127.0.0.1' ? `https://${targetHost}/` : `${window.location.protocol}//${targetHost}${port ? ':' + port : ''}${window.location.pathname}`;
     
     document.getElementById('direct-url-link').href = targetUrl;
     document.getElementById('direct-url-link').textContent = targetUrl;

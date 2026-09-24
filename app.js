@@ -1,8 +1,8 @@
-// 5人家族向け食費節約アプリ コアロジック (app.js)
+// 子育て家庭向け食費節約アプリ コアロジック (app.js)
 
 // アプリ全体の状態
 const state = {
-  servings: 5, // デフォルト5人家族
+  servings: 5, // デフォルト5人（1〜7人対応）
   targetBudget: 7500, // 1週間の目標予算（円）初期値
   weeklyPlan: null, // { mon: { main: id, side: id, soup: id }, ... }
   checkedItems: {}, // { '合挽き肉_g': true, ... }
@@ -92,10 +92,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     render();
 
-    // 夫婦間共有が設定されている場合は自動ポーリングを開始
+    // 家族共有が設定されている場合は起動時取得（C案: 画面表示時更新）
     if (state.familySyncCode) {
       updateSyncStatusUI('connected');
-      startSyncPolling();
+      fetchAndApplySync(true).then(() => {
+        if (state.hasUrlAutoJoin) {
+          showToast(`家族共有コード【${state.familySyncCode}】に参加し、最新データを取得しました！`);
+          delete state.hasUrlAutoJoin;
+        }
+      });
     }
 
     // 初回利用者はまず「使い方ガイド」を表示
@@ -162,19 +167,26 @@ function loadSavedState() {
     }
   }
 
-  // 合言葉同期の読み込み（URLパラメータまたはハッシュがあれば優先）
+  // 家族共有コードの読み込み（URLパラメータまたはハッシュからの自動参加）
   const urlParams = new URLSearchParams(window.location.search);
   const hashParam = window.location.hash ? window.location.hash.replace('#', '') : '';
-  let initialCode = urlParams.get('family') || urlParams.get('code') || '';
-  if (!initialCode && hashParam.startsWith('family=')) {
-    initialCode = hashParam.split('=')[1];
+  let urlFamilyCode = urlParams.get('family') || urlParams.get('code') || '';
+  if (!urlFamilyCode && hashParam.startsWith('family=')) {
+    urlFamilyCode = hashParam.split('=')[1];
   }
-  if (!initialCode) {
-    initialCode = localStorage.getItem(STORAGE_KEY_SYNC_CODE) || '';
-  }
-  if (initialCode) {
-    state.familySyncCode = initialCode.trim().toLowerCase();
+  
+  if (urlFamilyCode) {
+    state.familySyncCode = normalizeFamilyCode(urlFamilyCode);
     localStorage.setItem(STORAGE_KEY_SYNC_CODE, state.familySyncCode);
+    state.hasUrlAutoJoin = true;
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  } else {
+    const savedCode = localStorage.getItem(STORAGE_KEY_SYNC_CODE) || '';
+    if (savedCode) {
+      state.familySyncCode = normalizeFamilyCode(savedCode);
+    }
   }
 
   const savedOnboarding = localStorage.getItem(STORAGE_KEY_ONBOARDING);
@@ -1045,11 +1057,63 @@ function closeFeedbackModal() {
 }
 window.closeFeedbackModal = closeFeedbackModal;
 
-// ==================== 夫婦間共有（合言葉同期エンジン） ====================
-let syncPollingTimer = null;
-let syncDebounceTimer = null;
+// ==================== 家族共有（B案: 自動生成コード+QR、C案: 復帰時+手動更新） ====================
 const SYNC_API_BASE = 'https://frugal-meal-sync-default-rtdb.firebaseio.com/families';
+const SYNC_CODE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // 0, O, 1, I を完全除外した32文字
 
+// 6桁コード生成
+function generate6DigitCode() {
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += SYNC_CODE_CHARS.charAt(Math.floor(Math.random() * SYNC_CODE_CHARS.length));
+  }
+  return code;
+}
+
+// コードの衝突回避付き生成（最大5回リトライ）
+async function generateUniqueFamilyCode() {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generate6DigitCode();
+    const existing = await fetchSyncData(code);
+    if (!existing) return code;
+  }
+  return generate6DigitCode() + Math.floor(Math.random() * 9);
+}
+
+// コードの入力値正規化（大文字化・空白除去・0/O/1/Iの見間違い防止）
+function normalizeFamilyCode(code) {
+  if (!code) return '';
+  return code.trim().toUpperCase().replace(/[\s-]/g, '');
+}
+
+// 共有URLの生成
+function getFamilyShareUrl(code) {
+  const base = 'https://fi1025re-commits.github.io/frugal-meal-planner/';
+  return `${base}?family=${encodeURIComponent(code)}`;
+}
+
+// 最終更新時刻の文字列生成
+function formatLastUpdatedTime(timestamp) {
+  if (!timestamp) return '';
+  const d = new Date(timestamp);
+  const h = d.getHours().toString().padStart(2, '0');
+  const m = d.getMinutes().toString().padStart(2, '0');
+  return `最終更新 ${h}:${m}`;
+}
+
+// 最終更新表示の更新
+function updateLastUpdatedDisplay(timestamp) {
+  const timeStr = formatLastUpdatedTime(timestamp || state.lastSyncTime || Date.now());
+  state.lastSyncTimeString = timeStr;
+
+  const shoppingTime = document.getElementById('sync-last-time-shopping');
+  if (shoppingTime) shoppingTime.textContent = timeStr ? `(${timeStr})` : '';
+
+  const modalTime = document.getElementById('modal-sync-last-time');
+  if (modalTime) modalTime.textContent = timeStr;
+}
+
+// 同期用フルペイロード
 function getSyncPayload() {
   return {
     updatedAt: Date.now(),
@@ -1062,9 +1126,10 @@ function getSyncPayload() {
   };
 }
 
+// リモートから最新データ取得
 async function fetchSyncData(code) {
   if (!code) return null;
-  const cleanCode = encodeURIComponent(code.trim().toLowerCase());
+  const cleanCode = encodeURIComponent(normalizeFamilyCode(code));
   try {
     const res = await fetch(`${SYNC_API_BASE}/${cleanCode}.json`);
     if (!res.ok) return null;
@@ -1075,9 +1140,10 @@ async function fetchSyncData(code) {
   }
 }
 
+// リモートへデータ全プッシュ
 async function pushSyncData(code) {
   if (!code) return false;
-  const cleanCode = encodeURIComponent(code.trim().toLowerCase());
+  const cleanCode = encodeURIComponent(normalizeFamilyCode(code));
   const payload = getSyncPayload();
   try {
     updateSyncStatusUI('syncing');
@@ -1088,6 +1154,7 @@ async function pushSyncData(code) {
     });
     if (res.ok) {
       state.lastSyncTime = payload.updatedAt;
+      updateLastUpdatedDisplay(state.lastSyncTime);
       updateSyncStatusUI('connected');
       return true;
     }
@@ -1098,175 +1165,401 @@ async function pushSyncData(code) {
   return false;
 }
 
+// 第31条・第32条: 変更された曜日だけ更新（Last Write Wins）
+async function pushSyncDayPlan(dayId) {
+  if (!state.familySyncCode || !state.weeklyPlan || !state.weeklyPlan[dayId]) return;
+  const cleanCode = encodeURIComponent(normalizeFamilyCode(state.familySyncCode));
+  const now = Date.now();
+  try {
+    await fetch(`${SYNC_API_BASE}/${cleanCode}/weeklyPlan/${dayId}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state.weeklyPlan[dayId])
+    });
+    await fetch(`${SYNC_API_BASE}/${cleanCode}/updatedAt.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(now)
+    });
+    state.lastSyncTime = now;
+    updateLastUpdatedDisplay(now);
+  } catch (err) {
+    console.warn('Day plan sync warning:', err);
+  }
+}
+
+// 第33条 案B: 買い物リストの1品単位更新
+async function pushSyncCheckedItem(itemKey, isChecked) {
+  if (!state.familySyncCode) return;
+  const cleanCode = encodeURIComponent(normalizeFamilyCode(state.familySyncCode));
+  const safeKey = encodeURIComponent(itemKey).replace(/\./g, '%2E');
+  const now = Date.now();
+  try {
+    await fetch(`${SYNC_API_BASE}/${cleanCode}/checkedItems/${safeKey}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(isChecked)
+    });
+    await fetch(`${SYNC_API_BASE}/${cleanCode}/updatedAt.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(now)
+    });
+    state.lastSyncTime = now;
+    updateLastUpdatedDisplay(now);
+  } catch (err) {
+    console.warn('Checked item sync warning:', err);
+  }
+}
+
+let syncDebounceTimer = null;
 function pushSyncDataDebounced() {
   if (!state.familySyncCode) return;
   if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(() => {
     pushSyncData(state.familySyncCode);
-  }, 1200);
+  }, 800);
 }
 
-function updateSyncStatusUI(status) {
-  state.syncStatus = status;
-  const dot = document.getElementById('sync-status-dot');
-  const bulb = document.getElementById('sync-indicator-bulb');
-  const text = document.getElementById('sync-indicator-text');
-  const disconnectBtn = document.getElementById('btn-disconnect-sync');
-  const manualBtn = document.getElementById('btn-manual-sync-now');
-
-  if (status === 'connected') {
-    if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-0.5';
-    if (bulb) bulb.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
-    if (text) text.innerHTML = `<span class="text-emerald-700">同期中: <strong>${state.familySyncCode}</strong></span>`;
-    if (disconnectBtn) disconnectBtn.classList.remove('hidden');
-    if (manualBtn) manualBtn.classList.remove('hidden');
-  } else if (status === 'syncing') {
-    if (dot) dot.className = 'w-2 h-2 rounded-full bg-sky-400 animate-ping ml-0.5';
-    if (bulb) bulb.className = 'w-2.5 h-2.5 rounded-full bg-sky-400';
-    if (text) text.innerHTML = `<span class="text-sky-700">クラウドと通信中...</span>`;
-  } else {
-    if (dot) dot.className = 'w-2 h-2 rounded-full bg-slate-300 ml-0.5';
-    if (bulb) bulb.className = 'w-2.5 h-2.5 rounded-full bg-slate-300';
-    if (text) text.innerHTML = `<span>未接続（この端末のみで保存中）</span>`;
-    if (disconnectBtn) disconnectBtn.classList.add('hidden');
-    if (manualBtn) manualBtn.classList.add('hidden');
-  }
-}
-
-function startSyncPolling() {
-  if (syncPollingTimer) clearInterval(syncPollingTimer);
-  if (!state.familySyncCode) return;
-
-  // 6秒ごとにクラウドから最新状態を取得して夫婦間で即時反映
-  syncPollingTimer = setInterval(async () => {
-    if (!state.familySyncCode) return;
-    const remoteData = await fetchSyncData(state.familySyncCode);
-    if (remoteData && remoteData.updatedAt && remoteData.updatedAt > (state.lastSyncTime || 0)) {
-      applyRemoteData(remoteData);
-    }
-  }, 6000);
-}
-
-function applyRemoteData(data) {
+// リモートデータの適用
+function applyRemoteData(data, isSilent = false) {
+  if (!data) return;
   let changed = false;
+
   if (data.weeklyPlan && JSON.stringify(data.weeklyPlan) !== JSON.stringify(state.weeklyPlan)) {
     state.weeklyPlan = data.weeklyPlan;
-    saveWeeklyPlan();
+    savePlan();
     changed = true;
   }
-  if (data.checkedItems && JSON.stringify(data.checkedItems) !== JSON.stringify(state.checkedItems)) {
-    state.checkedItems = data.checkedItems;
-    saveChecked();
-    changed = true;
+
+  if (data.checkedItems) {
+    const decodedChecked = {};
+    Object.keys(data.checkedItems).forEach(k => {
+      try {
+        const origKey = decodeURIComponent(k);
+        decodedChecked[origKey] = !!data.checkedItems[k];
+      } catch (e) {
+        decodedChecked[k] = !!data.checkedItems[k];
+      }
+    });
+
+    if (JSON.stringify(decodedChecked) !== JSON.stringify(state.checkedItems)) {
+      state.checkedItems = decodedChecked;
+      saveChecked();
+      changed = true;
+    }
   }
+
   if (data.servings && data.servings !== state.servings) {
     state.servings = data.servings;
     saveServings();
     changed = true;
   }
+
   if (data.targetBudget && data.targetBudget !== state.targetBudget) {
     state.targetBudget = data.targetBudget;
     saveBudget();
     changed = true;
   }
+
   if (data.childrenCount !== undefined && data.childrenCount !== state.childrenCount) {
     state.childrenCount = data.childrenCount;
     localStorage.setItem(STORAGE_KEY_CHILDREN_COUNT, state.childrenCount);
     changed = true;
   }
+
   if (data.childrenPreferences) {
     state.childrenPreferences = data.childrenPreferences;
     saveChildrenPreferences();
     changed = true;
   }
 
-  state.lastSyncTime = data.updatedAt;
+  state.lastSyncTime = data.updatedAt || Date.now();
+  updateLastUpdatedDisplay(state.lastSyncTime);
+
   if (changed) {
     render();
-    showToast('パートナーの操作内容（献立・買い物チェック）を同期しました！');
+    if (!isSilent) {
+      showToast('家族の最新データ（献立・買い物チェック）を同期しました！');
+    }
   }
 }
 
-function openSyncModal() {
-  const modal = document.getElementById('modal-sync');
-  const codeInput = document.getElementById('sync-family-code');
-  if (!modal) return;
-
-  if (codeInput) {
-    codeInput.value = state.familySyncCode || '';
+// 更新方式（C案）: 画面表示時・ブラウザ復帰時・手動更新（ポーリング完全廃止）
+async function fetchAndApplySync(isSilent = false) {
+  if (!state.familySyncCode) return;
+  try {
+    if (!isSilent) updateSyncStatusUI('syncing');
+    const remoteData = await fetchSyncData(state.familySyncCode);
+    if (remoteData) {
+      applyRemoteData(remoteData, isSilent);
+      updateSyncStatusUI('connected');
+    } else {
+      updateSyncStatusUI('connected');
+    }
+  } catch (err) {
+    console.warn('Sync refresh error:', err);
+    updateSyncStatusUI(state.familySyncCode ? 'connected' : 'disconnected');
   }
-  updateSyncStatusUI(state.familySyncCode ? 'connected' : 'disconnected');
+}
+
+// 手動「最新に更新」ボタン押下時
+window.triggerManualSync = async function() {
+  if (!state.familySyncCode) {
+    showToast('現在家族共有に参加していません。「家族共有」から開始できます');
+    return;
+  }
+  showToast('最新データを取得中...');
+  await fetchAndApplySync(false);
+  showToast('最新データに更新しました！');
+};
+
+// UIステータス表示更新
+function updateSyncStatusUI(status) {
+  state.syncStatus = status;
+  const dot = document.getElementById('sync-status-dot');
+  if (dot) {
+    if (status === 'connected') {
+      dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-0.5';
+    } else if (status === 'syncing') {
+      dot.className = 'w-2 h-2 rounded-full bg-sky-400 animate-ping ml-0.5';
+    } else {
+      dot.className = 'w-2 h-2 rounded-full bg-slate-300 ml-0.5';
+    }
+  }
+}
+
+// 家族共有モーダル表示
+window.openSyncModal = function() {
+  const modal = document.getElementById('modal-sync');
+  if (!modal) return;
+  renderSyncModalContent();
   modal.classList.remove('hidden');
   modal.classList.add('flex');
   safeCreateIcons();
-}
-window.openSyncModal = openSyncModal;
+};
 
-function closeSyncModal() {
+window.closeSyncModal = function() {
   const modal = document.getElementById('modal-sync');
   if (!modal) return;
   modal.classList.add('hidden');
   modal.classList.remove('flex');
-}
-window.closeSyncModal = closeSyncModal;
+};
 
-async function connectFamilySync() {
-  const input = document.getElementById('sync-family-code');
-  const rawCode = input ? input.value.trim() : '';
-  if (!rawCode || rawCode.length < 3) {
-    showToast('合言葉は3文字以上で入力してください');
+// モーダル内容描画（B案）
+function renderSyncModalContent() {
+  const container = document.getElementById('sync-modal-content');
+  if (!container) return;
+
+  if (state.familySyncCode) {
+    // ===== 共有中 =====
+    const shareUrl = getFamilyShareUrl(state.familySyncCode);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}`;
+
+    container.innerHTML = `
+      <!-- 共有コード表示カード -->
+      <div class="bg-indigo-50/90 border border-indigo-100 rounded-2xl p-4 text-center">
+        <span class="text-[11px] font-bold text-indigo-700 block mb-1">現在の家族共有コード</span>
+        <div class="flex items-center justify-center gap-2">
+          <span class="text-3xl font-black text-indigo-950 tracking-widest font-mono select-all">${state.familySyncCode}</span>
+          <button onclick="copyFamilyCode()" class="p-2 rounded-xl bg-white text-indigo-700 hover:bg-indigo-100 transition shadow-2xs border border-indigo-200 active:scale-95 cursor-pointer" title="コードをコピー">
+            <i data-lucide="copy" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <p class="text-[10px] text-indigo-500 mt-1">※見間違いを防ぐため、数字の「0」「1」や英字の「O」「I」は使用していません</p>
+      </div>
+
+      <!-- QRコード参加エリア -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 text-center">
+        <h4 class="font-bold text-slate-800 text-xs mb-2">相手のスマホカメラで読み取るだけ！</h4>
+        <div class="flex justify-center my-2">
+          <div class="p-2 bg-white rounded-xl shadow-xs border border-slate-200">
+            <img src="${qrUrl}" alt="共有用QRコード" class="w-36 h-36 mx-auto block" loading="lazy">
+          </div>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">読み取ると確認画面なしで自動的に共有が始まります</p>
+        <button onclick="copyShareUrl()" class="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 active:scale-95 cursor-pointer">
+          <i data-lucide="link" class="w-3.5 h-3.5"></i>
+          <span>共有リンクをコピー</span>
+        </button>
+      </div>
+
+      <!-- 更新状態＆手動更新ボタン -->
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between">
+        <div>
+          <span class="text-[11px] font-bold text-slate-700 block">同期ステータス</span>
+          <span id="modal-sync-last-time" class="text-[11px] text-slate-500">${formatLastUpdatedTime(state.lastSyncTime)}</span>
+        </div>
+        <button onclick="triggerManualSync()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200 transition-colors shadow-2xs active:scale-95 cursor-pointer">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>今すぐ最新に更新</span>
+        </button>
+      </div>
+
+      <!-- 共有管理ボタン群（再発行・離脱） -->
+      <div class="pt-2 border-t border-slate-100">
+        <div class="flex items-center justify-between">
+          <button onclick="regenerateFamilySyncCode()" class="text-[11px] text-slate-500 hover:text-indigo-600 font-bold underline cursor-pointer">
+            🔄 共有コードを再発行
+          </button>
+          <button onclick="leaveFamilySync()" class="text-[11px] text-rose-500 hover:text-rose-700 font-bold underline cursor-pointer">
+            🚪 共有から抜ける
+          </button>
+        </div>
+      </div>
+    `;
+  } else {
+    // ===== 未共有 =====
+    container.innerHTML = `
+      <div class="bg-indigo-50/80 p-3.5 rounded-2xl border border-indigo-100 text-slate-700 leading-relaxed text-[11px]">
+        💡 <strong>家族共有とは:</strong> 夫婦やご家族で同じ家族設定・週間予算・献立・買い物リストを共有できます。登録・ログインは一切不要です！
+      </div>
+
+      <!-- 新規共有開始ボタン -->
+      <div class="py-2 text-center">
+        <button onclick="startFamilySharing()" class="w-full py-3 px-4 rounded-2xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 transition-all shadow-md shadow-indigo-200 active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+          <span>✨</span>
+          <span>新しく家族共有を始める（コード発行）</span>
+        </button>
+        <span class="text-[10px] text-slate-400 mt-1 block">現在の献立や設定を引き継いで共有グループを作ります</span>
+      </div>
+
+      <div class="relative flex py-1 items-center">
+        <div class="flex-grow border-t border-slate-200"></div>
+        <span class="flex-shrink mx-3 text-slate-400 text-[11px] font-bold">または</span>
+        <div class="flex-grow border-t border-slate-200"></div>
+      </div>
+
+      <!-- 予備: 手入力で参加 -->
+      <div>
+        <label for="input-join-code" class="block font-bold text-slate-700 mb-1.5 text-xs">家族の共有コードを入力して参加</label>
+        <div class="flex gap-2">
+          <input type="text" id="input-join-code" placeholder="例: 8AB4YZ" maxlength="8" class="flex-1 border-2 border-indigo-200 rounded-xl px-3 py-2 text-slate-900 font-black text-sm focus:ring-2 focus:ring-indigo-400 uppercase tracking-widest text-center">
+          <button onclick="handleManualJoinSubmit()" class="px-4 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm cursor-pointer active:scale-95 shrink-0">
+            参加する
+          </button>
+        </div>
+        <p class="text-[10px] text-slate-400 mt-1">※大文字・小文字は自動で判別されます</p>
+      </div>
+    `;
+  }
+  safeCreateIcons();
+}
+
+// 共有コードコピー
+window.copyFamilyCode = function() {
+  if (!state.familySyncCode) return;
+  navigator.clipboard.writeText(state.familySyncCode).then(() => {
+    showToast(`共有コード【${state.familySyncCode}】をコピーしました！`);
+  }).catch(() => {
+    showToast(`コード: ${state.familySyncCode}`);
+  });
+};
+
+// 共有リンクコピー
+window.copyShareUrl = function() {
+  if (!state.familySyncCode) return;
+  const url = getFamilyShareUrl(state.familySyncCode);
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('共有リンクをコピーしました！パートナーにLINE等で送れます');
+  }).catch(() => {
+    showToast(url);
+  });
+};
+
+// 新規共有コードを発行して共有開始
+window.startFamilySharing = async function() {
+  showToast('共有コードを発行中...');
+  const newCode = await generateUniqueFamilyCode();
+  state.familySyncCode = newCode;
+  localStorage.setItem(STORAGE_KEY_SYNC_CODE, newCode);
+  await pushSyncData(newCode);
+  updateSyncStatusUI('connected');
+  renderSyncModalContent();
+  showToast(`家族共有コード【${newCode}】を発行しました！`);
+};
+
+// 手入力による参加
+window.handleManualJoinSubmit = async function() {
+  const input = document.getElementById('input-join-code');
+  const rawCode = input ? input.value : '';
+  const cleanCode = normalizeFamilyCode(rawCode);
+  if (!cleanCode || cleanCode.length < 4) {
+    showToast('共有コードを入力してください');
     return;
   }
+  await joinFamilyByCode(cleanCode, true);
+};
 
-  const cleanCode = rawCode.toLowerCase();
-  showToast('接続中...');
-  updateSyncStatusUI('syncing');
+// コードによる参加（QR読み取り・手入力共用）
+async function joinFamilyByCode(code, showFeedback = true) {
+  const cleanCode = normalizeFamilyCode(code);
+  if (!cleanCode) return;
 
+  if (showFeedback) showToast('共有グループに接続中...');
   const remoteData = await fetchSyncData(cleanCode);
+
   state.familySyncCode = cleanCode;
   localStorage.setItem(STORAGE_KEY_SYNC_CODE, cleanCode);
 
   if (remoteData && remoteData.weeklyPlan) {
-    // 相手が既に作成済みのデータがある場合は取り込む
-    applyRemoteData(remoteData);
-    showToast(`合言葉【${cleanCode}】に接続し、献立を同期しました！`);
+    applyRemoteData(remoteData, !showFeedback);
+    if (showFeedback) showToast(`共有コード【${cleanCode}】に参加し、献立を同期しました！`);
   } else {
-    // まだ相手がいない場合は現在のデータをアップロード
     await pushSyncData(cleanCode);
-    showToast(`合言葉【${cleanCode}】を作成しました！パートナーにもこの合言葉を教えてください`);
+    if (showFeedback) showToast(`共有コード【${cleanCode}】を作成しました！`);
   }
 
   updateSyncStatusUI('connected');
-  startSyncPolling();
-  closeSyncModal();
+  renderSyncModalContent();
+  if (showFeedback) closeSyncModal();
 }
-window.connectFamilySync = connectFamilySync;
 
-function disconnectFamilySync() {
-  if (!confirm('夫婦間共有を解除しますか？（現在のデータはこの端末に残ります）')) return;
-  if (syncPollingTimer) clearInterval(syncPollingTimer);
+// 第34条: 共有から抜ける（端末離脱・ローカルデータ保持）
+window.leaveFamilySync = function() {
+  const ok = confirm('この端末を家族共有から抜けますか？\n（現在の献立や設定はこの端末にそのまま残り、単独で使い続けられます）');
+  if (!ok) return;
+
   state.familySyncCode = '';
   localStorage.removeItem(STORAGE_KEY_SYNC_CODE);
   updateSyncStatusUI('disconnected');
-  showToast('夫婦間共有を解除しました');
-  closeSyncModal();
-}
-window.disconnectFamilySync = disconnectFamilySync;
+  renderSyncModalContent();
+  showToast('家族共有から抜けました。データはこの端末でそのまま使い続けられます');
+};
 
-async function triggerManualSync() {
-  if (!state.familySyncCode) return;
-  showToast('クラウドと最新同期中...');
-  updateSyncStatusUI('syncing');
-  const remoteData = await fetchSyncData(state.familySyncCode);
-  if (remoteData && remoteData.updatedAt) {
-    applyRemoteData(remoteData);
-  } else {
-    await pushSyncData(state.familySyncCode);
+// 第35条: 共有コード再発行（新コード発行・旧コード即時無効）
+window.regenerateFamilySyncCode = async function() {
+  const ok = confirm('新しい共有コードを発行しますか？\n（現在のコードは即座に無効になり、相手の端末も新しいコードで再接続が必要になります）');
+  if (!ok) return;
+
+  showToast('新コードを発行中...');
+  const oldCode = state.familySyncCode;
+  if (oldCode) {
+    try {
+      await fetch(`${SYNC_API_BASE}/${encodeURIComponent(normalizeFamilyCode(oldCode))}.json`, { method: 'DELETE' });
+    } catch (e) {}
   }
+
+  const newCode = await generateUniqueFamilyCode();
+  state.familySyncCode = newCode;
+  localStorage.setItem(STORAGE_KEY_SYNC_CODE, newCode);
+  await pushSyncData(newCode);
   updateSyncStatusUI('connected');
-  showToast('同期が完了しました！');
-}
-window.triggerManualSync = triggerManualSync;
+  renderSyncModalContent();
+  showToast(`新しいコード【${newCode}】を発行しました！`);
+};
+
+// ブラウザ復帰時＆フォーカス時の最新データ自動取得（C案）
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.familySyncCode) {
+    fetchAndApplySync(true);
+  }
+});
+window.addEventListener('focus', () => {
+  if (state.familySyncCode) {
+    fetchAndApplySync(true);
+  }
+});
 
 window.handleFeedbackSubmit = function(e) {
   e.preventDefault();
@@ -1326,14 +1619,6 @@ window.handleResetData = function() {
 };
 
 
-window.copyMobileUrl = function() {
-  const url = document.getElementById('modal-mobile-url')?.textContent?.trim() || 'http://192.168.3.181:8080/';
-  navigator.clipboard.writeText(url).then(() => {
-    showToast('スマホ接続用URLをコピーしました！');
-  }).catch(() => {
-    showToast('コピーに失敗しました');
-  });
-};
 
 function render() {
   renderTabs();
@@ -1965,7 +2250,7 @@ window.toggleCheckItem = function(key) {
   saveChecked();
   renderShoppingList();
   if (state.familySyncCode) {
-    pushSyncDataDebounced();
+    pushSyncCheckedItem(key, state.checkedItems[key]);
   }
 };
 
@@ -2606,21 +2891,48 @@ window.closeDetailModal = function() {
   state.detailRecipe = null;
 };
 
-window.openChangeModal = function(dayId, category) {
-  state.changeTarget = { dayId, category };
-  const modal = document.getElementById('modal-change-recipe');
+state.changeCategoryFilter = 'all'; // 'all', 'meat', 'fish', 'other'
+
+window.setChangeModalCategoryFilter = function(filter) {
+  state.changeCategoryFilter = filter;
+  document.querySelectorAll('[data-change-filter]').forEach(b => {
+    const f = b.getAttribute('data-change-filter');
+    if (f === filter) {
+      b.className = 'px-3 py-1 rounded-xl text-xs font-bold bg-teal-600 text-white shadow-2xs';
+    } else {
+      b.className = 'px-3 py-1 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors';
+    }
+  });
+  renderChangeRecipeList();
+};
+
+function renderChangeRecipeList() {
   const listContainer = document.getElementById('modal-change-list');
-  const titleEl = document.getElementById('modal-change-title');
+  if (!listContainer || !state.changeTarget) return;
 
-  const dayObj = DAYS_OF_WEEK.find(d => d.id === dayId);
-  const categoryLabels = { main: '主菜', side: '副菜', soup: '汁物' };
-
-  titleEl.textContent = `${dayObj.name}の【${categoryLabels[category]}】を変更`;
-
-  const allCategoryRecipes = RECIPES_DATA.filter(r => r.category === category && !state.blacklistedRecipeIds.includes(r.id));
+  const { dayId, category } = state.changeTarget;
+  let recipes = RECIPES_DATA.filter(r => r.category === category && !state.blacklistedRecipeIds.includes(r.id));
   const currentId = state.weeklyPlan[dayId][category];
 
-  listContainer.innerHTML = allCategoryRecipes.map(r => {
+  // 簡易カテゴリフィルタ（第14条: おまかせ / 肉系 / 魚系 / その他）
+  if (state.changeCategoryFilter === 'meat') {
+    recipes = recipes.filter(r => ['pork', 'chicken', 'mince'].includes(r.proteinType) || r.title.includes('肉') || r.title.includes('豚') || r.title.includes('鶏'));
+  } else if (state.changeCategoryFilter === 'fish') {
+    recipes = recipes.filter(r => r.proteinType === 'fish' || r.title.includes('魚') || r.title.includes('鮭') || r.title.includes('サバ') || r.title.includes('ツナ') || r.title.includes('ぶり'));
+  } else if (state.changeCategoryFilter === 'other') {
+    recipes = recipes.filter(r => (!['pork', 'chicken', 'mince', 'fish'].includes(r.proteinType)) || r.proteinType === 'tofu' || r.proteinType === 'soy');
+  }
+
+  if (recipes.length === 0) {
+    listContainer.innerHTML = `
+      <div class="text-center py-8 text-slate-400 text-xs">
+        該当するレシピがありません。「おまかせ」をお試しください。
+      </div>
+    `;
+    return;
+  }
+
+  listContainer.innerHTML = recipes.map(r => {
     const isSelected = r.id === currentId;
     const isDisliked = !Object.values(state.childrenPreferences).every(pref => canChildEat(r, pref));
     const proteinText = r.proteinType ? PROTEIN_ICONS[r.proteinType] : '';
@@ -2652,7 +2964,29 @@ window.openChangeModal = function(dayId, category) {
       </div>
     `;
   }).join('');
+}
 
+window.openChangeModal = function(dayId, category) {
+  state.changeTarget = { dayId, category };
+  state.changeCategoryFilter = 'all';
+  const modal = document.getElementById('modal-change-recipe');
+  const titleEl = document.getElementById('modal-change-title');
+
+  const dayObj = DAYS_OF_WEEK.find(d => d.id === dayId);
+  const categoryLabels = { main: '主菜', side: '副菜', soup: '汁物' };
+
+  titleEl.textContent = `${dayObj.name}の【${categoryLabels[category]}】を変更`;
+
+  document.querySelectorAll('[data-change-filter]').forEach(b => {
+    const f = b.getAttribute('data-change-filter');
+    if (f === 'all') {
+      b.className = 'px-3 py-1 rounded-xl text-xs font-bold bg-teal-600 text-white shadow-2xs';
+    } else {
+      b.className = 'px-3 py-1 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors';
+    }
+  });
+
+  renderChangeRecipeList();
   modal.classList.remove('hidden');
   modal.classList.add('flex');
 };
@@ -2671,7 +3005,7 @@ window.selectAlternativeRecipe = function(newRecipeId) {
   showToast('メニューを変更しました');
 
   if (state.familySyncCode) {
-    pushSyncDataDebounced();
+    pushSyncDayPlan(dayId);
   }
 };
 
@@ -2775,37 +3109,40 @@ window.handleAddRecipeSubmit = function(e) {
   const title = titleInput ? titleInput.value.trim() : '';
   if (!title) return;
 
-  const category = document.getElementById('add-recipe-category').value;
-  const cuisine = document.getElementById('add-recipe-cuisine').value;
-  const proteinType = document.getElementById('add-recipe-protein').value;
-  const season = document.getElementById('add-recipe-season').value;
-  const cost = parseInt(document.getElementById('add-recipe-cost').value, 10) || 120;
-  const time = document.getElementById('add-recipe-time').value.trim() || '15分';
-  const url = document.getElementById('add-recipe-url').value.trim();
-  const rawIngredients = document.getElementById('add-recipe-ingredients').value;
-  const description = document.getElementById('add-recipe-description').value.trim();
-  const isFav = document.getElementById('add-recipe-fav').checked;
+  const urlOrMemo = document.getElementById('add-recipe-url')?.value?.trim() || '';
+  const isUrl = urlOrMemo.startsWith('http://') || urlOrMemo.startsWith('https://');
+  const rawIngredients = document.getElementById('add-recipe-ingredients')?.value || '';
+  const isFav = document.getElementById('add-recipe-fav')?.checked ?? true;
 
   const parsedIngredients = parseCustomIngredients(rawIngredients);
   const newId = `custom_${Date.now()}`;
 
+  // 食材からたんぱく質を推測
+  let detectedProtein = 'pork';
+  const ingStr = rawIngredients.toLowerCase();
+  if (ingStr.includes('鶏') || ingStr.includes('チキン')) detectedProtein = 'chicken';
+  else if (ingStr.includes('豚')) detectedProtein = 'pork';
+  else if (ingStr.includes('ひき肉') || ingStr.includes('ミンチ')) detectedProtein = 'mince';
+  else if (ingStr.includes('魚') || ingStr.includes('鮭') || ingStr.includes('サバ') || ingStr.includes('ぶり') || ingStr.includes('エビ')) detectedProtein = 'fish';
+  else if (ingStr.includes('豆腐') || ingStr.includes('卵')) detectedProtein = 'tofu';
+
   const newRecipe = {
     id: newId,
-    title: (url && !title.includes('外部サイト') && !title.includes('登録レシピ')) ? `【外部サイト】${title}` : title,
-    category: category,
-    cuisine: cuisine,
-    proteinType: category === 'main' ? proteinType : undefined,
-    season: season,
-    time: time,
-    approxCostPerPerson: cost,
-    tags: ["登録レシピ", ...(url ? ["外部レシピ"] : [])],
+    title: (isUrl && !title.includes('外部') && !title.includes('登録')) ? `【登録】${title}` : title,
+    category: 'main',
+    cuisine: 'japanese',
+    proteinType: detectedProtein,
+    season: 'all',
+    time: '15分',
+    approxCostPerPerson: 120,
+    tags: ["登録レシピ", ...(isUrl ? ["外部レシピ"] : [])],
     containsDislikes: [],
-    description: description || (url ? 'ユーザー様が登録された外部人気レシピです。' : 'ご家庭のオリジナルレシピです。'),
+    description: !isUrl && urlOrMemo ? urlOrMemo : (isUrl ? '外部サイト・動画の登録レシピです。' : 'ご家庭のオリジナル登録レシピです。'),
     kidsTip: 'ご家庭のお好みに合わせて味付けを調整してください。',
     tip: 'お買い得食材を活用してさらに節約可能！',
-    url: url || undefined,
+    url: isUrl ? urlOrMemo : undefined,
     ingredients: parsedIngredients,
-    instructions: url ? [] : ['詳しい作り方や動画は参考URLをご覧ください。'],
+    instructions: isUrl ? ['詳しい作り方や動画はリンク先をご覧ください。'] : (urlOrMemo ? [urlOrMemo] : ['お好みの味付けで調理してください。']),
     isCustom: true
   };
 

@@ -11,14 +11,14 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍳</text></svg>">
 
   <!-- SEO メタタグ -->
-  <title>5人家族の食費節約献立＆買い物リスト作成｜完全無料・子供の好き嫌い＆予算追従</title>
-  <meta name="description" content="5人家族（大人2人＋子供3人）に特化した、1週間分の節約献立と買い物リストを自動作成する完全無料ツール。子供の苦手食材除外、予算ピッタリ生成、お肉や味付けの偏り防止、スーパー売り場別の買い物リスト自動合算＆LINE共有に対応。">
-  <meta name="keywords" content="食費節約, 5人家族, 献立, 買い物リスト, 1週間献立, 節約レシピ, 子供の好き嫌い, まとめ買い">
+  <title>食費節約献立＆買い物リスト作成｜子育て家庭向け・1〜7人対応・完全無料・子供の好き嫌い＆予算追従</title>
+  <meta name="description" content="子育て家庭（1〜7人対応）に特化した、1週間分の節約献立と買い物リストを自動作成する完全無料ツール。子供の苦手食材除外、予算ピッタリ生成、お肉や味付けの偏り防止、スーパー売り場別の買い物リスト自動合算＆家族共有に対応。">
+  <meta name="keywords" content="食費節約, 献立, 買い物リスト, 1週間献立, 節約レシピ, 子供の好き嫌い, まとめ買い, 家族共有">
   <meta name="author" content="AOBA">
 
   <!-- SNSシェア・OGPタグ (X/Twitter, LINE, Facebook) -->
-  <meta property="og:title" content="5人家族の食費節約献立＆買い物リスト作成マスター">
-  <meta property="og:description" content="完全無料！1週間の予算に合わせて、子供が喜ぶ偏らない節約献立＆売り場別買い物リストを一瞬で自動作成！">
+  <meta property="og:title" content="食費節約献立＆買い物リスト作成マスター｜子育て家庭向け">
+  <meta property="og:description" content="完全無料！1週間の予算に合わせて、子供が喜ぶ偏らない節約献立＆売り場別買い物リストを一瞬で自動作成！夫婦・家族間共有対応。">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="食費節約献立＆買い出しマスター">
   <meta property="og:url" content="https://fi1025re-commits.github.io/frugal-meal-planner/">
@@ -97,10 +97,10 @@
             <span>使い方</span>
           </button>
 
-          <!-- 夫婦間共有ボタン -->
-          <button id="btn-open-sync" onclick="openSyncModal()" class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-bold text-indigo-800 bg-indigo-50/90 hover:bg-indigo-100 transition-all border-2 border-indigo-200 shadow-2xs active:scale-95 cursor-pointer" title="夫婦・家族で献立と買い物リストを共有">
+          <!-- 家族共有ボタン -->
+          <button id="btn-open-sync" onclick="openSyncModal()" class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-bold text-indigo-800 bg-indigo-50/90 hover:bg-indigo-100 transition-all border-2 border-indigo-200 shadow-2xs active:scale-95 cursor-pointer" title="家族で献立と買い物リストを共有">
             <span class="text-sm leading-none">👥</span>
-            <span>夫婦共有</span>
+            <span>家族共有</span>
             <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-slate-300 ml-0.5"></span>
           </button>
 
@@ -278,6 +278,11 @@
         
         <!-- アクションボタン -->
         <div class="flex items-center gap-2 flex-wrap">
+          <button id="btn-sync-refresh-shopping" onclick="triggerManualSync()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-200/80 active:scale-95 cursor-pointer" title="パートナーのチェック状態を最新に更新">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span id="sync-refresh-text-shopping">最新に更新</span>
+            <span id="sync-last-time-shopping" class="text-[10px] text-indigo-500 font-normal"></span>
+          </button>
           <button id="btn-share-line" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#06C755] hover:bg-[#05b34c] transition-all shadow-sm shadow-[#06C755]/20 active:scale-95">
             <i data-lucide="send" class="w-4 h-4"></i>
             <span>LINEで送る</span>
@@ -405,7 +410,7 @@
         <span>•</span>
         <button id="btn-open-guide-footer" onclick="openGuideModal()" class="hover:text-emerald-600 transition-colors cursor-pointer">❓ 使い方ガイド</button>
         <span>•</span>
-        <button id="btn-open-sync-footer" onclick="openSyncModal()" class="hover:text-indigo-600 transition-colors cursor-pointer">👥 夫婦間共有（合言葉）</button>
+        <button id="btn-open-sync-footer" onclick="openSyncModal()" class="hover:text-indigo-600 transition-colors cursor-pointer">👥 家族共有（コード・QR）</button>
         <span>•</span>
         <button id="btn-open-feedback-footer" onclick="openFeedbackModal()" class="hover:text-emerald-600 transition-colors cursor-pointer">💬 ご意見・不具合報告</button>
         <span>•</span>
@@ -421,86 +426,81 @@
   <!-- ==================== モーダル: お子様の好み・苦手食材診断 ==================== -->
   <div id="modal-preferences" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
-      <div class="p-6 border-b border-slate-100 shrink-0">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl">
-            👶
+      <!-- コンパクトヘッダー -->
+      <div class="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 shrink-0 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">👶</span>
+          <div>
+            <h3 id="modal-preferences-title" class="text-sm sm:text-base font-black text-slate-900 leading-tight">お子様ごとの好み・苦手設定</h3>
+            <p id="modal-preferences-subtitle" class="text-[11px] text-slate-500">苦手な食材を除外し、同じ材料で別メニューも提案します</p>
           </div>
-          <button id="btn-close-preferences" class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors">
-            <i data-lucide="x" class="w-5 h-5"></i>
-          </button>
         </div>
-        <h3 id="modal-preferences-title" class="text-lg font-bold text-slate-900">お子様ごとの好み・苦手設定</h3>
-        <p id="modal-preferences-subtitle" class="text-xs text-slate-500 mt-1">苦手な食材や味付けを除外し、可能な場合は同じ材料で別メニューを提案します。</p>
+        <button id="btn-close-preferences" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors shrink-0">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
 
-      <!-- 家族人数設定ブロック -->
-      <div class="px-6 py-3 bg-sky-50/70 border-b border-sky-100 flex items-center justify-between gap-3 shrink-0">
-        <div class="flex items-center gap-2.5">
-          <span class="text-2xl leading-none">👨‍👩‍👧‍👦</span>
-          <div>
-            <div class="text-xs font-black text-slate-800">ご家族の人数</div>
-            <div class="text-[11px] text-slate-500">食材の分量や目標予算を自動計算します</div>
-          </div>
+      <!-- コンパクト人数設定（2列で省スペース化） -->
+      <div class="px-4 py-2 sm:px-6 sm:py-2.5 bg-slate-50 border-b border-slate-100 grid grid-cols-2 gap-2 shrink-0">
+        <div class="flex flex-col gap-1 bg-white p-2 rounded-xl border border-sky-100 shadow-2xs">
+          <label for="modal-servings-select" class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+            <span>👨‍👩‍👧‍👦</span> 家族の人数
+          </label>
+          <select id="modal-servings-select" class="bg-sky-50/50 border border-sky-200 text-sky-950 font-black text-xs rounded-lg px-2 py-1 focus:ring-sky-400 cursor-pointer">
+            <option value="1">1人（単身）</option>
+            <option value="2">2人（夫婦）</option>
+            <option value="3">3人家族</option>
+            <option value="4">4人家族</option>
+            <option value="5" selected>5人家族（標準）</option>
+            <option value="6">6人家族</option>
+            <option value="7">7人以上（大家族）</option>
+          </select>
         </div>
-        <select id="modal-servings-select" class="bg-white border-2 border-sky-200 text-sky-950 font-black text-xs rounded-xl px-3 py-1.5 focus:ring-sky-400 cursor-pointer shadow-2xs">
-          <option value="1">1人（単身）</option>
-          <option value="2">2人家族（夫婦）</option>
-          <option value="3">3人家族</option>
-          <option value="4">4人家族</option>
-          <option value="5" selected>5人家族（標準）</option>
-          <option value="6">6人家族</option>
-          <option value="7">7人以上（大家族）</option>
-        </select>
-      </div>
 
-      <!-- お子様の人数設定ブロック（0人〜5人） -->
-      <div class="px-6 py-3 bg-amber-50/70 border-b border-amber-100 flex items-center justify-between gap-3 shrink-0">
-        <div class="flex items-center gap-2.5">
-          <span class="text-2xl leading-none">👶</span>
-          <div>
-            <div class="text-xs font-black text-slate-800">お子様の人数</div>
-            <div class="text-[11px] text-slate-500">人数分の好き嫌い個別設定タブを用意します</div>
-          </div>
+        <div class="flex flex-col gap-1 bg-white p-2 rounded-xl border border-amber-100 shadow-2xs">
+          <label for="modal-children-count-select" class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+            <span>👶</span> お子様の人数
+          </label>
+          <select id="modal-children-count-select" class="bg-amber-50/50 border border-amber-200 text-amber-950 font-black text-xs rounded-lg px-2 py-1 focus:ring-amber-400 cursor-pointer">
+            <option value="0">0人（大人・夫婦のみ）</option>
+            <option value="1">1人</option>
+            <option value="2">2人</option>
+            <option value="3" selected>3人（標準）</option>
+            <option value="4">4人</option>
+            <option value="5">5人</option>
+          </select>
         </div>
-        <select id="modal-children-count-select" class="bg-white border-2 border-amber-300 text-amber-950 font-black text-xs rounded-xl px-3 py-1.5 focus:ring-amber-400 cursor-pointer shadow-2xs">
-          <option value="0">0人（大人・夫婦のみ）</option>
-          <option value="1">1人</option>
-          <option value="2">2人</option>
-          <option value="3" selected>3人（標準）</option>
-          <option value="4">4人</option>
-          <option value="5">5人</option>
-        </select>
       </div>
 
       <!-- 子供切り替えタブ（JSで人数に応じて動的レンダリング） -->
       <div id="child-tabs-container" class="flex border-b border-slate-200 shrink-0 bg-slate-50 overflow-x-auto">
-        <button data-child-tab="child1" class="flex-1 py-3 text-sm font-bold text-teal-700 border-b-2 border-teal-600 bg-white">子供1</button>
-        <button data-child-tab="child2" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-white border-b-2 border-transparent transition-colors">子供2</button>
-        <button data-child-tab="child3" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-white border-b-2 border-transparent transition-colors">子供3</button>
+        <button data-child-tab="child1" class="flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-teal-700 border-b-2 border-teal-600 bg-white">子供1</button>
+        <button data-child-tab="child2" class="flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-white border-b-2 border-transparent transition-colors">子供2</button>
+        <button data-child-tab="child3" class="flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-white border-b-2 border-transparent transition-colors">子供3</button>
       </div>
 
-      <div class="p-6 overflow-y-auto">
+      <!-- 食材選択スクロール領域（スマホ画面の大部分を活用） -->
+      <div class="p-4 sm:p-6 overflow-y-auto flex-1">
         <p class="text-xs font-bold text-slate-600 mb-3 uppercase tracking-wider">苦手になりやすい食材・味付け（タップで除外）</p>
-        <div id="preferences-dislikes-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div id="preferences-dislikes-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pb-2">
           <!-- JSで動的レンダリング -->
         </div>
+      </div>
 
-        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-2 shrink-0">
-          <button type="button" id="btn-reset-data" class="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors flex items-center gap-1 active:scale-95" title="すべての保存データを初期化">
-            <span>🗑️</span>
-            <span>データを初期化</span>
+      <!-- 固定フッター操作ボタン群（スクロールに埋もれずいつでも押せる） -->
+      <div class="px-4 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between gap-2 shrink-0">
+        <button type="button" id="btn-reset-data" class="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors flex items-center gap-1 active:scale-95" title="すべての保存データを初期化">
+          <span>🗑️</span>
+          <span>初期化</span>
+        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="closePreferencesModal()" class="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-colors">
+            キャンセル
           </button>
-          <div class="flex items-center gap-2">
-            <button onclick="closePreferencesModal()" class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-colors">
-              キャンセル
-            </button>
-            <button onclick="savePreferencesAndGenerate()" class="px-5 py-2.5 rounded-2xl text-xs font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 transition-all shadow-md shadow-sky-200/50 active:scale-95">
-              設定を保存して献立を作成
-            </button>
-          </div>
+          <button onclick="savePreferencesAndGenerate()" class="px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl text-xs font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 transition-all shadow-md shadow-sky-200/50 active:scale-95">
+            設定を保存して献立を作成
+          </button>
         </div>
-
       </div>
     </div>
   </div>
@@ -520,11 +520,18 @@
   <!-- ==================== モーダル: 料理変更 ==================== -->
   <div id="modal-change-recipe" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full max-h-[85vh] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
-      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
         <h3 id="modal-change-title" class="font-bold text-slate-900 text-sm">別の料理に変更</h3>
         <button id="btn-close-change" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
+      </div>
+      <!-- 簡易カテゴリ切替（おまかせ / 肉系 / 魚系 / その他） -->
+      <div id="change-recipe-filter-bar" class="px-4 py-2 border-b border-slate-100 bg-slate-50/70 flex items-center gap-1.5 overflow-x-auto shrink-0">
+        <button onclick="setChangeModalCategoryFilter('all')" data-change-filter="all" class="px-3 py-1 rounded-xl text-xs font-bold bg-teal-600 text-white shadow-2xs">おまかせ</button>
+        <button onclick="setChangeModalCategoryFilter('meat')" data-change-filter="meat" class="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200">🥩 肉系</button>
+        <button onclick="setChangeModalCategoryFilter('fish')" data-change-filter="fish" class="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200">🐟 魚系</button>
+        <button onclick="setChangeModalCategoryFilter('other')" data-change-filter="other" class="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200">🌱 その他</button>
       </div>
       <div id="modal-change-list" class="p-4 overflow-y-auto flex-1 space-y-2.5">
         <!-- JSで動的レンダリング -->
@@ -551,81 +558,23 @@
       <form id="form-add-recipe" class="space-y-4 text-xs">
         <div>
           <label class="block font-bold text-slate-700 mb-1">料理名 <span class="text-rose-500">*</span></label>
-          <input type="text" id="add-recipe-title" required placeholder="例: 絶品！豚バラと大根のこってり煮" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">カテゴリ <span class="text-rose-500">*</span></label>
-            <select id="add-recipe-category" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500">
-              <option value="main">主菜 (メイン)</option>
-              <option value="side">副菜 (サイド)</option>
-              <option value="soup">汁物 (スープ・味噌汁)</option>
-            </select>
-          </div>
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">ジャンル</label>
-            <select id="add-recipe-cuisine" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500">
-              <option value="japanese">和食</option>
-              <option value="western">洋食</option>
-              <option value="chinese">中華</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">主なたんぱく質（主菜のみ）</label>
-            <select id="add-recipe-protein" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500">
-              <option value="pork">豚肉</option>
-              <option value="chicken">鶏肉</option>
-              <option value="mince">ひき肉</option>
-              <option value="fish">魚・缶詰</option>
-              <option value="tofu">豆腐・大豆・卵</option>
-            </select>
-          </div>
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">季節・旬</label>
-            <select id="add-recipe-season" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500">
-              <option value="all">通年</option>
-              <option value="spring">🌸 春</option>
-              <option value="summer">🌻 夏</option>
-              <option value="autumn">🍁 秋</option>
-              <option value="winter">❄️ 冬</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">1人前のおよその材料費 (円)</label>
-            <input type="number" id="add-recipe-cost" value="130" min="10" max="2000" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500">
-          </div>
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">調理時間の目安</label>
-            <input type="text" id="add-recipe-time" value="15分" placeholder="例: 15分" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500">
-          </div>
+          <input type="text" id="add-recipe-title" required placeholder="例: 絶品！豚バラと大根のこってり煮" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
         </div>
 
         <div>
-          <label class="block font-bold text-slate-700 mb-1">外部サイト / YouTube動画URL (任意)</label>
-          <input type="url" id="add-recipe-url" placeholder="https://www.youtube.com/watch?v=... または クックパッド等のURL" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500">
+          <label class="block font-bold text-slate-700 mb-1">主な材料 <span class="text-slate-400 font-normal">（任意・買い物リストに反映）</span></label>
+          <textarea id="add-recipe-ingredients" rows="3" placeholder="例: 豚肉 80g, 大根 60g, 醤油, みりん&#10;（カンマ区切りまたは改行で入力）" class="w-full border border-slate-300 rounded-xl p-3 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"></textarea>
+          <span class="text-[11px] text-slate-400">※ 入力すると家族人数分に自動計算され、売り場別に仕分けされます</span>
         </div>
 
         <div>
-          <label class="block font-bold text-slate-700 mb-1">主な材料 (1人前あたり。買い物リストにご家族人数分換算されます)</label>
-          <textarea id="add-recipe-ingredients" rows="3" placeholder="例: 豚こま肉 80g, 大根 60g, 醤油 10ml, みりん 10ml&#10;（カンマ区切りまたは改行で入力）" class="w-full border border-slate-300 rounded-xl p-3 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500"></textarea>
-          <span class="text-[11px] text-slate-400">※ 肉・魚・野菜などを入力すると売り場別に自動仕分けされます</span>
-        </div>
-
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">料理のメモ・子供向けワンポイント (任意)</label>
-          <input type="text" id="add-recipe-description" placeholder="例: 大根を薄切りにすると子供も食べやすく時短になります" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500">
+          <label class="block font-bold text-slate-700 mb-1">外部URL または メモ <span class="text-slate-400 font-normal">（任意）</span></label>
+          <input type="text" id="add-recipe-url" placeholder="YouTube動画・クックパッドのURL、または簡単な作り方メモ" class="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
         </div>
 
         <div class="flex items-center gap-2 pt-1">
           <input type="checkbox" id="add-recipe-fav" checked class="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-400 accent-teal-600">
-          <label for="add-recipe-fav" class="font-bold text-slate-700 cursor-pointer">★ お気に入りレシピに追加する（自動献立で定期的に選出）</label>
+          <label for="add-recipe-fav" class="font-bold text-slate-700 cursor-pointer">★ お気に入りレシピに追加する（献立で定期的に選出）</label>
         </div>
 
         <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -849,17 +798,17 @@
     </div>
   </div>
 
-  <!-- ==================== モーダル: 夫婦間共有（合言葉同期） ==================== -->
+  <!-- ==================== モーダル: 家族共有（自動生成コード・QR同期） ==================== -->
   <div id="modal-sync" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col p-6 border border-indigo-100">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+    <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col p-5 sm:p-6 border border-indigo-100 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4 shrink-0">
         <div class="flex items-center gap-2.5">
           <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl shrink-0">
             👥
           </div>
           <div>
-            <h3 class="text-base font-black text-slate-900">夫婦・家族で献立共有</h3>
-            <p class="text-[11px] text-slate-500 font-bold">合言葉を入力するだけでリアルタイム同期</p>
+            <h3 class="text-base font-black text-slate-900">家族共有（コード・QR）</h3>
+            <p class="text-[11px] text-slate-500 font-bold">登録不要・同じ献立と買い物リストを共有</p>
           </div>
         </div>
         <button id="btn-close-sync" onclick="closeSyncModal()" class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer">
@@ -867,42 +816,9 @@
         </button>
       </div>
 
-      <div class="space-y-4 text-xs">
-        <div class="bg-indigo-50/80 p-3.5 rounded-2xl border border-indigo-100 text-slate-700 leading-relaxed text-[11px]">
-          💡 <strong>使い方:</strong> 夫婦で同じ「合言葉（例: <code>tanaka55</code>）」を決めて入力するだけ！登録・ログインは一切不要です。献立の変更や買い物リストのチェックが相手のスマホにも自動反映されます。
-        </div>
-
-        <div>
-          <label class="block font-bold text-slate-700 mb-1.5">家族の合言葉（半角英数字4〜16文字）</label>
-          <div class="flex gap-2">
-            <input type="text" id="sync-family-code" placeholder="例: tanaka55" maxlength="16" class="flex-1 border-2 border-indigo-200 rounded-xl px-3 py-2 text-slate-900 font-black text-sm focus:ring-2 focus:ring-indigo-400 uppercase tracking-wider">
-            <button id="btn-connect-sync" onclick="connectFamilySync()" class="px-4 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm cursor-pointer active:scale-95 shrink-0">
-              接続する
-            </button>
-          </div>
-          <p class="text-[10px] text-slate-400 mt-1">※ご夫婦で共有しやすい、推測されにくい合言葉をお使いください。</p>
-        </div>
-
-        <!-- 接続ステータス表示 -->
-        <div id="sync-connection-info" class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-[11px] flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span id="sync-indicator-bulb" class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
-            <span id="sync-indicator-text" class="font-bold">未接続（この端末のみで保存中）</span>
-          </div>
-          <button id="btn-disconnect-sync" onclick="disconnectFamilySync()" class="hidden text-rose-500 hover:text-rose-700 font-bold underline cursor-pointer">
-            切断
-          </button>
-        </div>
-
-        <div class="pt-2 flex items-center justify-between">
-          <button id="btn-manual-sync-now" onclick="triggerManualSync()" class="hidden px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition cursor-pointer flex items-center gap-1">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-            <span>今すぐ同期</span>
-          </button>
-          <button onclick="closeSyncModal()" class="ml-auto px-5 py-2.5 rounded-2xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition cursor-pointer">
-            閉じる
-          </button>
-        </div>
+      <!-- 動的コンテンツ領域（JSで共有中／未共有を描画） -->
+      <div id="sync-modal-content" class="space-y-4 text-xs">
+        <!-- JSで動的レンダリング -->
       </div>
     </div>
   </div>
@@ -914,8 +830,8 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20260922e"></script>
-  <script src="app.js?v=20260922e"></script>
+  <script src="recipes.js?v=20260924a"></script>
+  <script src="app.js?v=20260924a"></script>
 </body>
 
 </html>
