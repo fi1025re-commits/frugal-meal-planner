@@ -430,12 +430,29 @@ function canChildEat(recipe, childPref) {
     return false;
   }
 
-  const hasDislikedTag = recipe.containsDislikes && recipe.containsDislikes.some(d => dislikes.includes(d));
+  // 類義語・関連食材ワードを展開
+  const expandedDislikeWords = [];
+  dislikes.forEach(d => {
+    expandedDislikeWords.push(d);
+    if (typeof DISLIKE_SYNONYMS !== 'undefined' && DISLIKE_SYNONYMS[d]) {
+      DISLIKE_SYNONYMS[d].forEach(syn => expandedDislikeWords.push(syn));
+    }
+  });
+
+  const hasDislikedTag = recipe.containsDislikes && recipe.containsDislikes.some(d => 
+    dislikes.includes(d) || expandedDislikeWords.includes(d)
+  );
   if (hasDislikedTag) return false;
+
+  // 魚類が苦手で主菜・副菜が魚プロテインの場合も除外
+  if (dislikes.includes('魚') && recipe.proteinType === 'fish') {
+    return false;
+  }
 
   const ingredients = recipe.ingredients || [];
   const hasDislikedIngredient = ingredients.some(ing => {
-    return ing && ing.name && dislikes.some(dis => ing.name.includes(dis));
+    if (!ing || !ing.name) return false;
+    return expandedDislikeWords.some(dis => ing.name.includes(dis));
   });
 
   return !hasDislikedIngredient;
@@ -2719,36 +2736,36 @@ window.openPreferencesModal = function(isOnboarding = false) {
 
       const currentPref = state.childrenPreferences[state.activeChildTab] || { dislikes: [], disabledFlavors: [] };
 
-      let html = `<div class="col-span-full text-xs font-black text-slate-600 mt-1 flex items-center gap-1.5"><span>🥬</span><span>苦手な食材（タップで除外）</span></div>`;
+      let html = `<div class="col-span-full text-xs font-black text-slate-700 mt-0.5 mb-1 flex items-center gap-1.5"><span>🥬</span><span>苦手な食材・野菜（タップで除外）</span></div>`;
       html += COMMON_DISLIKES.map(item => {
         const isChecked = currentPref.dislikes.includes(item.id);
         return `
-          <label class="flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold' : 'bg-slate-50/70 border-slate-200 text-slate-700 hover:bg-slate-100'}">
+          <label class="flex items-center gap-2 p-2 sm:p-2.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold shadow-2xs ring-1 ring-amber-300' : 'bg-slate-50/80 border-slate-200/90 text-slate-700 hover:bg-slate-100'}">
             <input type="checkbox" 
-                   class="w-5 h-5 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer accent-amber-600"
+                   class="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer accent-amber-600 shrink-0"
                    value="${item.id}" 
                    data-type="ingredient"
                    ${isChecked ? 'checked' : ''} 
                    onchange="handleDislikeToggle(this)">
-            <span class="text-xl">${item.icon}</span>
-            <span class="text-sm">${item.label}</span>
+            <span class="text-base sm:text-lg shrink-0">${item.icon}</span>
+            <span class="text-[11px] sm:text-xs font-bold leading-tight break-words">${item.label}</span>
           </label>
         `;
       }).join('');
 
-      html += `<div class="col-span-full text-xs font-black text-slate-600 mt-4 border-t pt-4 flex items-center gap-1.5"><span>🌶️</span><span>苦手な味付け・その他</span></div>`;
+      html += `<div class="col-span-full text-xs font-black text-slate-700 mt-3 pt-3 border-t border-slate-200/80 mb-1 flex items-center gap-1.5"><span>🌶️</span><span>苦手な味付け・その他</span></div>`;
       html += COMMON_FLAVORS.map(item => {
         const isChecked = currentPref.disabledFlavors.includes(item.id);
         return `
-          <label class="flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold' : 'bg-slate-50/70 border-slate-200 text-slate-700 hover:bg-slate-100'}">
+          <label class="flex items-center gap-2 p-2 sm:p-2.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold shadow-2xs ring-1 ring-amber-300' : 'bg-slate-50/80 border-slate-200/90 text-slate-700 hover:bg-slate-100'}">
             <input type="checkbox" 
-                   class="w-5 h-5 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer accent-amber-600"
+                   class="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer accent-amber-600 shrink-0"
                    value="${item.id}" 
                    data-type="flavor"
                    ${isChecked ? 'checked' : ''} 
                    onchange="handleDislikeToggle(this)">
-            <span class="text-xl">${item.icon}</span>
-            <span class="text-sm">${item.label}</span>
+            <span class="text-base sm:text-lg shrink-0">${item.icon}</span>
+            <span class="text-[11px] sm:text-xs font-bold leading-tight break-words">${item.label}</span>
           </label>
         `;
       }).join('');
@@ -2786,6 +2803,16 @@ window.handleDislikeToggle = function(checkbox) {
       if (!currentPref.disabledFlavors.includes(val)) currentPref.disabledFlavors.push(val);
     } else {
       currentPref.disabledFlavors = currentPref.disabledFlavors.filter(d => d !== val);
+    }
+  }
+
+  // 親ラベルのハイライト即時切り替え（再描画なしで爆速反応）
+  const parentLabel = checkbox.closest('label');
+  if (parentLabel) {
+    if (checkbox.checked) {
+      parentLabel.className = 'flex items-center gap-2 p-2 sm:p-2.5 rounded-xl border cursor-pointer select-none transition-all bg-amber-50 border-amber-400 text-amber-950 font-bold shadow-2xs ring-1 ring-amber-300';
+    } else {
+      parentLabel.className = 'flex items-center gap-2 p-2 sm:p-2.5 rounded-xl border cursor-pointer select-none transition-all bg-slate-50/80 border-slate-200/90 text-slate-700 hover:bg-slate-100';
     }
   }
 };
