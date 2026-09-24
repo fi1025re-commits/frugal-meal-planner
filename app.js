@@ -821,11 +821,39 @@ function setupEventListeners() {
     formAdd.addEventListener('submit', handleAddRecipeSubmit);
   }
 
-  // スマホ実機確認ボタン（URLコピー等の安全フォールバック）
+  // スマホ実機確認ボタン＆閉じる制御
   const btnOpenMobile = document.getElementById('btn-open-mobile-modal');
   if (btnOpenMobile) {
     btnOpenMobile.addEventListener('click', openMobileModal);
   }
+
+  const btnCloseMobile = document.getElementById('btn-close-mobile-modal');
+  if (btnCloseMobile) {
+    btnCloseMobile.addEventListener('click', closeMobileModal);
+  }
+
+  const modalMobile = document.getElementById('modal-mobile-connect');
+  if (modalMobile) {
+    modalMobile.addEventListener('click', (e) => {
+      if (e.target.id === 'modal-mobile-connect') {
+        closeMobileModal();
+      }
+    });
+  }
+
+  // Escキーで開いているすべてのモーダルを安全に閉じる
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMobileModal();
+      closeGuideModal();
+      closeFeedbackModal();
+      closeSyncModal();
+      closePreferencesModal();
+      closeDetailModal();
+      closeChangeModal();
+      closeAddRecipeModal();
+    }
+  });
 
   // 使い方ガイドモーダル
   const btnOpenGuide = document.getElementById('btn-open-guide');
