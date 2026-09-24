@@ -85,33 +85,47 @@ function getExternalBadge(recipe) {
 }
 
 // 初期化
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   try {
     loadSavedState();
     updateFavBadge();
     updateNgBadge();
     safeCreateIcons();
     setupEventListeners();
-    render();
 
-    // 家族共有が設定されている場合は起動時取得（C案: 画面表示時更新）
-    if (state.familySyncCode) {
+    // URLから共有参加した場合は、相手の献立・予算・設定を100%取得完了してから画面を描画する！
+    if (state.isJoiningFromUrl && state.familySyncCode) {
+      updateSyncStatusUI('syncing');
+      const remoteData = await fetchSyncData(state.familySyncCode);
+      if (remoteData && remoteData.weeklyPlan) {
+        applyRemoteData(remoteData, true);
+        updateSyncStatusUI('connected');
+        showToast(`家族共有コード【${state.familySyncCode}】に参加し、最新の献立・予算を同期しました！`);
+      } else {
+        showToast(`共有コード【${state.familySyncCode}】のデータを読み込めませんでした`);
+        updateSyncStatusUI('disconnected');
+      }
+      delete state.isJoiningFromUrl;
+    } else if (state.familySyncCode) {
+      // すでに参加済みの端末の場合（復帰時）
       updateSyncStatusUI('connected');
-      fetchAndApplySync(true).then(() => {
-        if (state.hasUrlAutoJoin) {
-          showToast(`家族共有コード【${state.familySyncCode}】に参加し、最新データを取得しました！`);
-          delete state.hasUrlAutoJoin;
-        }
-      });
+      fetchAndApplySync(true);
     }
 
-    // 初回利用者はまず「使い方ガイド」を表示
+    // 献立データがない場合はランダム生成（共有参加直後は相手のデータがあるためスキップされる）
+    if (!state.weeklyPlan || typeof state.weeklyPlan !== 'object' || Object.keys(state.weeklyPlan).length < 7) {
+      generateRandomWeeklyPlan(false);
+    }
+
+    render();
+
+    // 初回利用者はまず「使い方ガイド」を表示（共有URLから参加した人はガイドを出さずに献立をすぐ見せる）
     const guideSeen = localStorage.getItem(STORAGE_KEY_GUIDE_SEEN);
-    if (!guideSeen) {
+    if (!guideSeen && !state.familySyncCode) {
       setTimeout(() => {
         openGuideModal();
       }, 400);
-    } else if (!state.hasCompletedOnboarding) {
+    } else if (!state.hasCompletedOnboarding && !state.familySyncCode) {
       setTimeout(() => {
         openPreferencesModal(true);
       }, 400);
@@ -218,6 +232,7 @@ function loadSavedState() {
 
   if (urlFamilyCode) {
     state.familySyncCode = normalizeFamilyCode(urlFamilyCode);
+    state.isJoiningFromUrl = true;
     localStorage.setItem(STORAGE_KEY_SYNC_CODE, state.familySyncCode);
     state.hasUrlAutoJoin = true;
     if (window.history && window.history.replaceState) {
@@ -334,7 +349,7 @@ function loadSavedState() {
     }
   }
 
-  if (!isPlanValid) {
+  if (!isPlanValid && !state.isJoiningFromUrl) {
     generateRandomWeeklyPlan(false);
   }
 }
@@ -585,7 +600,7 @@ function generateRandomWeeklyPlan(showNotify = true) {
 
   render();
 
-  if (state.familySyncCode) {
+  if (state.familySyncCode && !state.isJoiningFromUrl) {
     pushSyncDataDebounced();
   }
 }
@@ -1289,11 +1304,9 @@ function applyRemoteData(data, isSilent = false) {
   state.lastSyncTime = data.updatedAt || Date.now();
   updateLastUpdatedDisplay(state.lastSyncTime);
 
-  if (changed) {
-    render();
-    if (!isSilent) {
-      showToast('家族の最新データ（献立・買い物チェック）を同期しました！');
-    }
+  render();
+  if (changed && !isSilent) {
+    showToast('家族の最新データ（献立・買い物チェック）を同期しました！');
   }
 }
 
@@ -1541,17 +1554,17 @@ async function joinFamilyByCode(code, showFeedback = true) {
     state.familySyncCode = cleanCode;
     localStorage.setItem(STORAGE_KEY_SYNC_CODE, cleanCode);
     applyRemoteData(remoteData, !showFeedback);
-    if (showFeedback) showToast(`共有コード【${cleanCode}】に参加し、献立を同期しました！`);
+    updateSyncStatusUI('connected');
+    renderSyncModalContent();
+    if (showFeedback) {
+      showToast(`共有コード【${cleanCode}】に参加し、最新の献立・予算を反映しました！`);
+      closeSyncModal();
+    }
   } else {
-    state.familySyncCode = cleanCode;
-    localStorage.setItem(STORAGE_KEY_SYNC_CODE, cleanCode);
-    await pushSyncData(cleanCode);
-    if (showFeedback) showToast(`共有コード【${cleanCode}】に参加しました！`);
+    // 相手のデータが存在しない・見つからない場合は絶対に上書きしない！
+    showToast(`共有コード【${cleanCode}】のデータが見つかりませんでした。コードをご確認ください`);
+    updateSyncStatusUI(state.familySyncCode ? 'connected' : 'disconnected');
   }
-
-  updateSyncStatusUI('connected');
-  renderSyncModalContent();
-  if (showFeedback) closeSyncModal();
 }
 
 // 第34条: 共有から抜ける（端末離脱・ローカルデータ保持）
