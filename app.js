@@ -611,10 +611,16 @@ function savePlan() {
 
 function saveServings() {
   localStorage.setItem(STORAGE_KEY_SERVINGS, state.servings.toString());
+  if (state.familySyncCode && !state.isJoiningFromUrl && !state.isApplyingRemote) {
+    pushSyncDataDebounced();
+  }
 }
 
 function saveBudget() {
   localStorage.setItem(STORAGE_KEY_BUDGET, state.targetBudget.toString());
+  if (state.familySyncCode && !state.isJoiningFromUrl && !state.isApplyingRemote) {
+    pushSyncDataDebounced();
+  }
 }
 
 function saveChecked() {
@@ -1277,36 +1283,47 @@ function applyRemoteData(data, isSilent = false) {
     }
   }
 
-  if (data.servings && data.servings !== state.servings) {
-    state.servings = data.servings;
-    saveServings();
-    changed = true;
-  }
+  state.isApplyingRemote = true;
+  try {
+    if (data.servings) {
+      const numServings = Number(data.servings);
+      if (numServings && numServings !== state.servings) {
+        state.servings = numServings;
+        localStorage.setItem(STORAGE_KEY_SERVINGS, state.servings.toString());
+        changed = true;
+      }
+    }
 
-  if (data.targetBudget && data.targetBudget !== state.targetBudget) {
-    state.targetBudget = data.targetBudget;
-    saveBudget();
-    changed = true;
-  }
+    if (data.targetBudget) {
+      const numBudget = Number(data.targetBudget);
+      if (numBudget && numBudget !== state.targetBudget) {
+        state.targetBudget = numBudget;
+        localStorage.setItem(STORAGE_KEY_BUDGET, state.targetBudget.toString());
+        changed = true;
+      }
+    }
 
-  if (data.childrenCount !== undefined && data.childrenCount !== state.childrenCount) {
-    state.childrenCount = data.childrenCount;
-    localStorage.setItem(STORAGE_KEY_CHILDREN_COUNT, state.childrenCount);
-    changed = true;
-  }
+    if (data.childrenCount !== undefined && data.childrenCount !== state.childrenCount) {
+      state.childrenCount = Number(data.childrenCount) || 0;
+      localStorage.setItem(STORAGE_KEY_CHILDREN_COUNT, state.childrenCount);
+      changed = true;
+    }
 
-  if (data.childrenPreferences) {
-    state.childrenPreferences = data.childrenPreferences;
-    saveChildrenPreferences();
-    changed = true;
-  }
+    if (data.childrenPreferences) {
+      state.childrenPreferences = data.childrenPreferences;
+      localStorage.setItem(STORAGE_KEY_CHILDREN_PREF, JSON.stringify(state.childrenPreferences));
+      changed = true;
+    }
 
-  state.lastSyncTime = data.updatedAt || Date.now();
-  updateLastUpdatedDisplay(state.lastSyncTime);
+    state.lastSyncTime = data.updatedAt || Date.now();
+    updateLastUpdatedDisplay(state.lastSyncTime);
 
-  render();
-  if (changed && !isSilent) {
-    showToast('家族の最新データ（献立・買い物チェック）を同期しました！');
+    render();
+    if (changed && !isSilent) {
+      showToast('家族の最新データ（献立・目標予算）を同期しました！');
+    }
+  } finally {
+    state.isApplyingRemote = false;
   }
 }
 
@@ -1675,9 +1692,36 @@ function render() {
   renderWeeklyPlan();
   renderShoppingList();
   renderRecipeBook();
+  updateBudgetControls();
   updateSummaryBadge();
   updatePreferenceBadge();
   safeCreateIcons();
+}
+
+// 画面内の予算入力欄・人数セレクトボックス・プリセットボタンを state と同期
+function updateBudgetControls() {
+  const budgetInput = document.getElementById('target-budget-input');
+  if (budgetInput && state.targetBudget) {
+    budgetInput.value = state.targetBudget;
+  }
+  const servingsSelect = document.getElementById('servings-select');
+  if (servingsSelect && state.servings) {
+    servingsSelect.value = state.servings.toString();
+  }
+  const modalServings = document.getElementById('modal-servings-select');
+  if (modalServings && state.servings) {
+    modalServings.value = state.servings.toString();
+  }
+
+  // プリセットボタン（¥6,500, ¥7,500, ¥8,500）のハイライト更新
+  document.querySelectorAll('[data-budget-preset]').forEach(btn => {
+    const val = parseInt(btn.getAttribute('data-budget-preset'), 10);
+    if (val === state.targetBudget) {
+      btn.className = 'px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-black text-sky-800 bg-sky-100 border border-sky-300 shadow-2xs transition';
+    } else {
+      btn.className = 'px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-sky-50 border border-transparent transition';
+    }
+  });
 }
 
 function renderTabs() {
