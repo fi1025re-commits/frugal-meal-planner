@@ -1103,6 +1103,14 @@ function setupEventListeners() {
 
   // PWA インストール支援
   setupPwaInstall();
+
+  // 印刷前イベント（A4プリント用の動的データ反映）
+  window.addEventListener('beforeprint', () => {
+    const pServings = document.getElementById('print-servings-badge');
+    if (pServings) pServings.textContent = `${state.servings}人分`;
+    const pBudget = document.getElementById('print-budget-text');
+    if (pBudget) pBudget.textContent = `¥${state.targetBudget.toLocaleString()}`;
+  });
 }
 
 // ==================== PWA インストール支援 ====================

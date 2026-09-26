@@ -39,8 +39,13 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="食費節約献立＆買い出しマスター">
   <meta property="og:url" content="https://fi1025re-commits.github.io/frugal-meal-planner/">
-  <meta property="og:image" content="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&h=630&q=80">
+  <meta property="og:image" content="https://fi1025re-commits.github.io/frugal-meal-planner/ogp.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="食費節約献立＆買い物リスト作成マスター｜子育て家庭向け">
+  <meta name="twitter:description" content="完全無料！1週間の予算に合わせて、子供が喜ぶ偏らない節約献立＆売り場別買い物リストを一瞬で自動作成！夫婦・家族間共有対応。">
+  <meta name="twitter:image" content="https://fi1025re-commits.github.io/frugal-meal-planner/ogp.png">
   <link rel="canonical" href="https://fi1025re-commits.github.io/frugal-meal-planner/">
 
   <!-- 構造化データ (Schema.org / JSON-LD for Google SEO) -->
@@ -113,8 +118,94 @@
       background: #bae6fd;
       border-radius: 9999px;
     }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #7dd3fc;
+    /* ==================== 印刷モード専用スタイル (@media print) ==================== */
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 6mm 8mm;
+      }
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 11px !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      /* 印刷時に隠す要素 */
+      header,
+      #main-tab-nav,
+      footer,
+      button,
+      #toast,
+      .fixed,
+      .sponsor-slot,
+      #badge-preferences-summary,
+      .tab-content.hidden {
+        display: none !important;
+      }
+      /* メイン領域の余白・最大幅リセット */
+      main {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      /* 印刷専用ヘッダーを表示 */
+      .print-only-header {
+        display: block !important;
+        margin-bottom: 8px !important;
+        border-bottom: 2px solid #0f172a !important;
+        padding-bottom: 4px !important;
+      }
+      /* 献立画面：月〜日の7日分グリッドを横並びでA4 1枚に美しく整列 */
+      #weekly-plan-container {
+        display: grid !important;
+        grid-template-columns: repeat(7, 1fr) !important;
+        gap: 5px !important;
+        width: 100% !important;
+      }
+      /* 献立カードの調整 */
+      #weekly-plan-container > div {
+        border: 1px solid #94a3b8 !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+        padding: 6px !important;
+        background: #ffffff !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      /* 料理名の文字サイズとレイアウト調整 */
+      #weekly-plan-container h3, 
+      #weekly-plan-container h4 {
+        font-size: 11px !important;
+        line-height: 1.2 !important;
+      }
+      #weekly-plan-container p, 
+      #weekly-plan-container span {
+        font-size: 10px !important;
+      }
+      /* シャッフルボタンやチェックマークを非表示 */
+      #weekly-plan-container button,
+      #weekly-plan-container .btn-shuffle,
+      #weekly-plan-container input[type="checkbox"] {
+        display: none !important;
+      }
+
+      /* 買い物リスト印刷時 */
+      #shopping-list-container {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+        page-break-inside: avoid !important;
+      }
+      #shopping-list-container > div {
+        border: 1px solid #94a3b8 !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+      }
+    }
+    .print-only-header {
+      display: none;
     }
   </style>
 </head>
@@ -282,10 +373,28 @@
   <!-- ==================== メインコンテンツ ==================== -->
   <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6">
 
+    <!-- 印刷専用ヘッダー（ブラウザ印刷時のみ表示） -->
+    <div class="print-only-header">
+      <div class="flex items-center justify-between pb-2 mb-2 border-b-2 border-slate-900">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🍳</span>
+          <div>
+            <h1 class="text-base font-black text-slate-900">1週間の食費節約献立カレンダー（冷蔵庫用）</h1>
+            <p class="text-[10px] text-slate-600">食材の使い回し＆お肉と和洋中のバランス献立</p>
+          </div>
+          <span id="print-servings-badge" class="text-xs border-2 border-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-lg font-black ml-2">3人分</span>
+        </div>
+        <div class="text-right text-[10px] text-slate-700 leading-tight">
+          <div>目標予算: <strong id="print-budget-text" class="text-xs">¥4,500</strong> / 週</div>
+          <div class="text-slate-500 mt-0.5">食費節約レシピまとめ集（無料）</div>
+        </div>
+      </div>
+    </div>
+
     <!-- ================= 1. 1週間の献立タブ ================= -->
     <section id="tab-weekly" class="tab-content">
       <div class="mb-4 flex items-center justify-between flex-wrap gap-2">
-        <div>
+        <div class="flex-1 min-w-[240px]">
           <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
             <span>📅 月曜日〜日曜日の節約献立</span>
             <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">🎯 予算追従＆お肉連続防止中</span>
@@ -293,6 +402,14 @@
           <p class="text-xs text-slate-500 mt-0.5">
             設定した予算に最も近づくよう、お肉（鶏・豚・挽肉・魚）や和洋中をバランスよく配置しました。料理をクリックで作り方確認、🔄で別メニューに変更できます。
           </p>
+        </div>
+
+        <!-- 印刷ボタン -->
+        <div class="flex items-center gap-2 shrink-0">
+          <button id="btn-print-weekly" onclick="window.print()" class="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-black text-slate-800 bg-white hover:bg-slate-50 transition-all border-2 border-slate-200 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer" title="冷蔵庫に貼れるA4用紙1枚で印刷・PDF保存">
+            <span class="text-sm">🖨️</span>
+            <span>冷蔵庫用に印刷（PDF）</span>
+          </button>
         </div>
       </div>
 
@@ -342,6 +459,10 @@
             <button id="btn-copy-list" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200/80 active:scale-95">
               <i data-lucide="copy" class="w-4 h-4"></i>
               <span>リストをコピー</span>
+            </button>
+            <button id="btn-print-shopping" onclick="window.print()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200/80 active:scale-95 cursor-pointer" title="買い物リストを印刷">
+              <span class="text-sm">🖨️</span>
+              <span>印刷</span>
             </button>
             <button id="btn-clear-checked" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors">
               <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
@@ -1056,8 +1177,8 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20260926d"></script>
-  <script src="app.js?v=20260926d"></script>
+  <script src="recipes.js?v=20260926e"></script>
+  <script src="app.js?v=20260926e"></script>
 
   <!-- PWA Service Worker 登録 -->
   <script>
