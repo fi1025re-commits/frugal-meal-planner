@@ -2,15 +2,13 @@
 
 // アプリ全体の状態
 const state = {
-  servings: 5, // デフォルト5人（1〜7人対応）
-  targetBudget: 7500, // 1週間の目標予算（円）初期値
+  servings: 3, // デフォルト3人（1〜7人対応、一般的な子育て世帯標準）
+  targetBudget: 4500, // 1週間の目標予算（円）初期値（3人前目安）
   weeklyPlan: null, // { mon: { main: id, side: id, soup: id }, ... }
   checkedItems: {}, // { '合挽き肉_g': true, ... }
-  childrenCount: 3, // お子様の人数 (0〜5人)
+  childrenCount: 1, // お子様の人数 (0〜5人、デフォルト1人)
   childrenPreferences: {
-    child1: { dislikes: [], disabledFlavors: [] },
-    child2: { dislikes: [], disabledFlavors: [] },
-    child3: { dislikes: [], disabledFlavors: [] }
+    child1: { dislikes: [], disabledFlavors: [] }
   },
   activeChildTab: 'child1',
   familySyncCode: '', // 夫婦間共有合言葉 (例: tanaka55)
@@ -140,19 +138,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 function loadSavedState() {
   const savedServings = localStorage.getItem(STORAGE_KEY_SERVINGS);
   if (savedServings) {
-    state.servings = parseInt(savedServings, 10) || 5;
+    state.servings = parseInt(savedServings, 10) || 3;
   }
 
   const savedBudget = localStorage.getItem(STORAGE_KEY_BUDGET);
   if (savedBudget) {
-    state.targetBudget = parseInt(savedBudget, 10) || 7500;
+    state.targetBudget = parseInt(savedBudget, 10) || 4500;
   }
 
   const savedChildrenCount = localStorage.getItem(STORAGE_KEY_CHILDREN_COUNT);
   if (savedChildrenCount !== null) {
     state.childrenCount = parseInt(savedChildrenCount, 10);
   } else {
-    state.childrenCount = 3; // デフォルト3人
+    state.childrenCount = 1; // デフォルト1人（標準: 夫婦+子ども1人＝3人家族）
   }
 
   const savedChildrenPref = localStorage.getItem(STORAGE_KEY_CHILDREN_PREF);
@@ -838,6 +836,14 @@ function setupEventListeners() {
       btnModeAll.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow-2xs transition-all';
       btnModeWeekly.className = 'px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all';
       if (dayFilterContainer) dayFilterContainer.classList.add('hidden');
+      renderRecipeBook();
+    });
+  }
+
+  const recipeDaySelect = document.getElementById('recipe-day-select');
+  if (recipeDaySelect) {
+    recipeDaySelect.addEventListener('change', (e) => {
+      state.selectedDayFilter = e.target.value;
       renderRecipeBook();
     });
   }
@@ -1715,11 +1721,29 @@ function render() {
   safeCreateIcons();
 }
 
-// 画面内の予算入力欄・人数セレクトボックス・プリセットボタンを state と同期
+// 人数ステッパー（− / ＋）操作関数
+window.changeServingsByStep = function(delta) {
+  const current = state.servings || 3;
+  const next = Math.max(1, Math.min(7, current + delta));
+  if (next !== current) {
+    state.servings = next;
+    saveServings();
+    // 人数連動で予算も自然に更新（1人あたり約1,500円/週）
+    state.targetBudget = Math.round(state.servings * 1500);
+    saveBudget();
+    generateRandomWeeklyPlan(true);
+  }
+};
+
+// 画面内の予算入力欄・人数ステッパー・プリセットボタンを state と同期
 function updateBudgetControls() {
   const budgetInput = document.getElementById('target-budget-input');
   if (budgetInput && state.targetBudget) {
     budgetInput.value = state.targetBudget;
+  }
+  const servingsDisplay = document.getElementById('servings-display');
+  if (servingsDisplay && state.servings) {
+    servingsDisplay.textContent = `${state.servings}人分`;
   }
   const servingsSelect = document.getElementById('servings-select');
   if (servingsSelect && state.servings) {
@@ -1730,7 +1754,7 @@ function updateBudgetControls() {
     modalServings.value = state.servings.toString();
   }
 
-  // プリセットボタン（¥6,500, ¥7,500, ¥8,500）のハイライト更新
+  // プリセットボタンのハイライト更新
   document.querySelectorAll('[data-budget-preset]').forEach(btn => {
     const val = parseInt(btn.getAttribute('data-budget-preset'), 10);
     if (val === state.targetBudget) {

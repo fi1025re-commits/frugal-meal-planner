@@ -121,30 +121,33 @@
         </div>
       </div>
 
-      <!-- アクションボタン群（スマホでは3列均等で横並び・省スペース） -->
-      <div class="grid grid-cols-3 sm:flex sm:items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+      <!-- アクションボタン群（好み設定・人数ステッパー・献立生成） -->
+      <div class="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-between sm:justify-end">
         <!-- お子様の好み設定ボタン -->
-        <button id="btn-open-preferences" onclick="openPreferencesModal(false)" class="flex items-center justify-center gap-1 px-2.5 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-bold text-lime-900 bg-lime-50/90 hover:bg-lime-100/90 transition-all border-2 border-lime-200 shadow-2xs active:scale-95 cursor-pointer">
+        <button id="btn-open-preferences" onclick="openPreferencesModal(false)" class="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-2.5 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-bold text-lime-900 bg-lime-50/90 hover:bg-lime-100/90 transition-all border-2 border-lime-200 shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap">
           <span class="text-sm sm:text-base leading-none">👶</span>
           <span>好み設定</span>
         </button>
 
-        <!-- 家族人数切り替え -->
-        <div class="flex items-center justify-center gap-1 bg-sky-50/90 px-2 sm:px-3 py-1.5 rounded-2xl border-2 border-sky-200/80 text-[11px] sm:text-xs font-bold text-sky-950 shadow-2xs">
-          <span class="text-sm sm:text-base leading-none">👨‍👩‍👧‍👦</span>
-          <select id="servings-select" class="bg-transparent border-none text-slate-900 font-black focus:ring-0 cursor-pointer p-0 text-[11px] sm:text-xs">
+        <!-- 家族人数ステッパー（− 3人分 ＋） -->
+        <div class="flex-1 sm:flex-initial flex items-center justify-center bg-white rounded-2xl border-2 border-sky-200/90 shadow-2xs overflow-hidden select-none">
+          <button type="button" onclick="changeServingsByStep(-1)" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center font-black text-sky-800 hover:bg-sky-50 active:bg-sky-100 transition cursor-pointer text-sm" title="1人減らす">－</button>
+          <span id="servings-display" class="px-1.5 sm:px-2 font-black text-sky-950 text-[11px] sm:text-xs whitespace-nowrap">3人分</span>
+          <button type="button" onclick="changeServingsByStep(1)" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center font-black text-sky-800 hover:bg-sky-50 active:bg-sky-100 transition cursor-pointer text-sm" title="1人増やす">＋</button>
+          <!-- 互換用非表示select -->
+          <select id="servings-select" class="hidden">
             <option value="1">1人分</option>
             <option value="2">2人分</option>
-            <option value="3">3人分</option>
+            <option value="3" selected>3人分</option>
             <option value="4">4人分</option>
-            <option value="5" selected>5人分</option>
+            <option value="5">5人分</option>
             <option value="6">6人分</option>
             <option value="7">7人分</option>
           </select>
         </div>
 
         <!-- 1週間分自動生成ボタン -->
-        <button id="btn-regenerate-weekly" onclick="generateRandomWeeklyPlan(true)" class="flex items-center justify-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 transition-all shadow-md shadow-sky-200/60 active:scale-95 cursor-pointer">
+        <button id="btn-regenerate-weekly" onclick="generateRandomWeeklyPlan(true)" class="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 transition-all shadow-md shadow-sky-200/60 active:scale-95 cursor-pointer whitespace-nowrap">
           <i data-lucide="sparkles" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
           <span>献立生成</span>
         </button>
@@ -165,15 +168,15 @@
 
           <!-- プリセットボタン -->
           <div class="inline-flex rounded-xl shadow-2xs bg-white border border-sky-100 p-0.5">
-            <button data-budget-preset="6500" class="px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-sky-100 transition">¥6,500</button>
-            <button data-budget-preset="7500" class="px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-sky-100 transition">¥7,500</button>
-            <button data-budget-preset="8500" class="px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-sky-100 transition">¥8,500</button>
+            <button data-budget-preset="3500" class="px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-sky-100 transition">¥3,500</button>
+            <button data-budget-preset="4500" class="px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-black text-sky-800 bg-sky-100 border border-sky-300 shadow-2xs transition">¥4,500</button>
+            <button data-budget-preset="5500" class="px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-sky-100 transition">¥5,500</button>
           </div>
 
           <!-- 手入力 -->
           <div class="flex items-center bg-white border border-sky-200 rounded-xl px-2 py-0.5 shadow-2xs">
             <span class="text-sky-500 font-black mr-0.5 text-[11px]">¥</span>
-            <input type="number" id="target-budget-input" step="100" min="3000" max="30000" 
+            <input type="number" id="target-budget-input" step="100" min="2000" max="30000" value="4500"
                    class="w-16 sm:w-20 border-none bg-transparent p-0 text-slate-900 font-black focus:ring-0 text-[11px] sm:text-xs">
           </div>
 
@@ -195,10 +198,11 @@
           </div>
 
           <!-- 金額内訳 -->
-          <div class="flex items-center gap-1.5 font-bold text-slate-800 bg-white/90 px-2.5 py-0.5 rounded-xl border border-sky-200/80 shadow-2xs text-[11px] sm:text-xs">
-            <span>推定: <strong id="badge-total-cost" class="text-teal-700 font-black">¥7,450</strong></span>
+          <div class="flex items-center gap-1.5 font-bold text-slate-800 bg-white/90 px-2.5 py-0.5 rounded-xl border border-sky-200/80 shadow-2xs text-[11px] sm:text-xs" title="一般的なスーパー相場に基づくおかず食材費の目安です">
+            <span>推定: <strong id="badge-total-cost" class="text-teal-700 font-black">¥4,450</strong></span>
             <span class="text-slate-300">/</span>
-            <span class="text-slate-500">目標 <span id="badge-target-cost" class="font-bold">¥7,500</span></span>
+            <span class="text-slate-500">目標 <span id="badge-target-cost" class="font-bold">¥4,500</span></span>
+            <span class="text-[9px] text-slate-400 font-normal hidden md:inline">※おかず目安</span>
           </div>
         </div>
 
@@ -261,38 +265,51 @@
 
     <!-- ================= 2. 買い物リストタブ ================= -->
     <section id="tab-shopping" class="tab-content hidden">
-      <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <span>🛒 1週間分のまとめ買いリスト</span>
-            <span class="text-xs px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 font-bold">
-              推定お会計: <span id="shopping-estimated-budget">約 ¥7,450</span>
-            </span>
-          </h2>
-          <p class="text-xs text-slate-500 mt-1">
-            7日分の全メニューから重複する食材を自動合算し、スーパーの売り場別に整理しています。
-          </p>
+      <div class="mb-6 flex flex-col gap-3 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span>🛒 1週間分のまとめ買いリスト</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 font-bold">
+                推定お会計: <span id="shopping-estimated-budget">約 ¥4,450</span>
+              </span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-1">
+              7日分の全メニューから重複する食材を自動合算し、スーパーの売り場別に整理しています。
+            </p>
+          </div>
+          
+          <!-- アクションボタン -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <button id="btn-sync-refresh-shopping" onclick="triggerManualSync()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-200/80 active:scale-95 cursor-pointer" title="パートナーのチェック状態を最新に更新">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span id="sync-refresh-text-shopping">最新に更新</span>
+              <span id="sync-last-time-shopping" class="text-[10px] text-indigo-500 font-normal"></span>
+            </button>
+            <button id="btn-share-line" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#06C755] hover:bg-[#05b34c] transition-all shadow-sm shadow-[#06C755]/20 active:scale-95">
+              <i data-lucide="send" class="w-4 h-4"></i>
+              <span>LINEで送る</span>
+            </button>
+            <button id="btn-copy-list" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200/80 active:scale-95">
+              <i data-lucide="copy" class="w-4 h-4"></i>
+              <span>リストをコピー</span>
+            </button>
+            <button id="btn-clear-checked" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              <span>チェック解除</span>
+            </button>
+          </div>
         </div>
-        
-        <!-- アクションボタン -->
-        <div class="flex items-center gap-2 flex-wrap">
-          <button id="btn-sync-refresh-shopping" onclick="triggerManualSync()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-200/80 active:scale-95 cursor-pointer" title="パートナーのチェック状態を最新に更新">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-            <span id="sync-refresh-text-shopping">最新に更新</span>
-            <span id="sync-last-time-shopping" class="text-[10px] text-indigo-500 font-normal"></span>
-          </button>
-          <button id="btn-share-line" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#06C755] hover:bg-[#05b34c] transition-all shadow-sm shadow-[#06C755]/20 active:scale-95">
-            <i data-lucide="send" class="w-4 h-4"></i>
-            <span>LINEで送る</span>
-          </button>
-          <button id="btn-copy-list" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200/80 active:scale-95">
-            <i data-lucide="copy" class="w-4 h-4"></i>
-            <span>リストをコピー</span>
-          </button>
-          <button id="btn-clear-checked" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors">
-            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-            <span>チェック解除</span>
-          </button>
+
+        <!-- 金額の目安・ズレに関する注意書き明示カード -->
+        <div class="p-3 sm:p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 leading-relaxed">
+          <div class="flex items-center gap-1.5 font-bold text-amber-900 mb-1">
+            <span class="text-sm">ℹ️</span>
+            <span>推定お会計と金額の目安について</span>
+          </div>
+          <p class="text-slate-600">
+            一般的なスーパーの標準相場に基づく「おかず食材費」の概算目安です。お米・基本調味料代や、店舗のパック売り規格（グラム単位の端数）、季節・天候による価格変動により、実際のレジお会計合計とは前後します。1週間の買い出し配分や節約ペースの目安としてご活用ください。
+          </p>
         </div>
       </div>
 
@@ -379,17 +396,22 @@
           </div>
         </div>
 
-        <!-- 曜日切替フィルタ（「今週の献立」モード用） -->
-        <div id="recipe-day-filter-container" class="flex items-center gap-1 bg-slate-50 p-2 rounded-xl overflow-x-auto">
-          <span class="text-xs font-bold text-slate-500 mr-2 shrink-0">曜日で絞り込み:</span>
-          <button data-filter-day="all" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white transition-all whitespace-nowrap">すべて</button>
-          <button data-filter-day="mon" class="px-3 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-all whitespace-nowrap">月</button>
-          <button data-filter-day="tue" class="px-3 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-all whitespace-nowrap">火</button>
-          <button data-filter-day="wed" class="px-3 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-all whitespace-nowrap">水</button>
-          <button data-filter-day="thu" class="px-3 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-all whitespace-nowrap">木</button>
-          <button data-filter-day="fri" class="px-3 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-all whitespace-nowrap">金</button>
-          <button data-filter-day="sat" class="px-3 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-sky-700 hover:bg-slate-100 transition-all whitespace-nowrap">土</button>
-          <button data-filter-day="sun" class="px-3 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-rose-700 hover:bg-slate-100 transition-all whitespace-nowrap">日</button>
+        <!-- 曜日切替フィルタ（「今週の献立」モード用: ドロップダウン化で省スペース） -->
+        <div id="recipe-day-filter-container" class="flex items-center gap-2 bg-slate-50 p-2 rounded-xl">
+          <span class="text-xs font-bold text-slate-600 flex items-center gap-1 shrink-0">
+            <span>📅</span>
+            <span>表示する曜日:</span>
+          </span>
+          <select id="recipe-day-select" class="bg-white border border-slate-300 rounded-lg px-3 py-1 font-bold text-slate-800 text-xs focus:ring-emerald-500 cursor-pointer shadow-2xs">
+            <option value="all">すべての曜日（月〜日）</option>
+            <option value="mon">月曜日の献立</option>
+            <option value="tue">火曜日の献立</option>
+            <option value="wed">水曜日の献立</option>
+            <option value="thu">木曜日の献立</option>
+            <option value="fri">金曜日の献立</option>
+            <option value="sat">土曜日の献立</option>
+            <option value="sun">日曜日の献立</option>
+          </select>
         </div>
       </div>
 
@@ -536,9 +558,9 @@
           <select id="modal-servings-select" class="bg-sky-50/50 border border-sky-200 text-sky-950 font-black text-xs rounded-lg px-2 py-1 focus:ring-sky-400 cursor-pointer">
             <option value="1">1人（単身）</option>
             <option value="2">2人（夫婦）</option>
-            <option value="3">3人家族</option>
+            <option value="3" selected>3人家族（標準）</option>
             <option value="4">4人家族</option>
-            <option value="5" selected>5人家族（標準）</option>
+            <option value="5">5人家族</option>
             <option value="6">6人家族</option>
             <option value="7">7人以上（大家族）</option>
           </select>
@@ -550,9 +572,9 @@
           </label>
           <select id="modal-children-count-select" class="bg-amber-50/50 border border-amber-200 text-amber-950 font-black text-xs rounded-lg px-2 py-1 focus:ring-amber-400 cursor-pointer">
             <option value="0">0人（大人・夫婦のみ）</option>
-            <option value="1">1人</option>
+            <option value="1" selected>1人（標準）</option>
             <option value="2">2人</option>
-            <option value="3" selected>3人（標準）</option>
+            <option value="3">3人</option>
             <option value="4">4人</option>
             <option value="5">5人</option>
           </select>
@@ -955,8 +977,8 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20260926a"></script>
-  <script src="app.js?v=20260926a"></script>
+  <script src="recipes.js?v=20260926b"></script>
+  <script src="app.js?v=20260926b"></script>
 </body>
 
 </html>
