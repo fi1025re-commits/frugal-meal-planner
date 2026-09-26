@@ -32,7 +32,9 @@ const state = {
   showBlacklistedOnly: false, // 除外（NG）レシピのみ表示フラグ
   cookedDays: [], // ['mon', ...] 今日作った曜日
   blacklistedRecipeIds: [], // ['main_02', ...] 献立除外レシピID
-  customRecipes: [] // ユーザーが追加登録した外部・オリジナルレシピ
+  customRecipes: [], // ユーザーが追加登録した外部・オリジナルレシピ
+  hideSeasonings: false, // 基本調味料（常備品）を隠すフラグ
+  customShoppingItems: [] // 自由に追加した買い足しメモ [{ id, name, isChecked }]
 };
 
 // LocalStorage キー
@@ -55,6 +57,8 @@ const STORAGE_KEY_COOKED_DAYS = 'frugal_cooked_days_v1';
 const STORAGE_KEY_BLACKLIST = 'frugal_blacklisted_recipes_v1';
 const STORAGE_KEY_GUIDE_SEEN = 'frugal_guide_seen_v1';
 const STORAGE_KEY_FEEDBACK = 'frugal_user_feedback_v1';
+const STORAGE_KEY_HIDE_SEASONINGS = 'frugal_hide_seasonings_v1';
+const STORAGE_KEY_CUSTOM_SHOPPING = 'frugal_custom_shopping_items_v1';
 
 // 安全なアイコン描画ヘルパー
 function safeCreateIcons() {
@@ -326,6 +330,24 @@ function loadSavedState() {
       state.blacklistedRecipeIds = JSON.parse(savedBlacklist) || [];
     } catch (e) {
       state.blacklistedRecipeIds = [];
+    }
+  }
+
+  const savedHideSeasonings = localStorage.getItem(STORAGE_KEY_HIDE_SEASONINGS);
+  if (savedHideSeasonings !== null) {
+    try {
+      state.hideSeasonings = JSON.parse(savedHideSeasonings);
+    } catch (e) {
+      state.hideSeasonings = false;
+    }
+  }
+
+  const savedCustomShopping = localStorage.getItem(STORAGE_KEY_CUSTOM_SHOPPING);
+  if (savedCustomShopping) {
+    try {
+      state.customShoppingItems = JSON.parse(savedCustomShopping) || [];
+    } catch (e) {
+      state.customShoppingItems = [];
     }
   }
 
@@ -654,6 +676,17 @@ function saveOnboarding() {
   localStorage.setItem(STORAGE_KEY_ONBOARDING, 'true');
 }
 
+function saveHideSeasonings() {
+  localStorage.setItem(STORAGE_KEY_HIDE_SEASONINGS, JSON.stringify(state.hideSeasonings));
+}
+
+function saveCustomShoppingItems() {
+  localStorage.setItem(STORAGE_KEY_CUSTOM_SHOPPING, JSON.stringify(state.customShoppingItems));
+  if (state.familySyncCode && !state.isJoiningFromUrl && !state.isApplyingRemote) {
+    pushSyncDataDebounced();
+  }
+}
+
 function getRecipeById(id) {
   if (!id || typeof RECIPES_DATA === 'undefined') return null;
   return RECIPES_DATA.find(r => r && r.id === id) || null;
@@ -733,11 +766,30 @@ function setupEventListeners() {
     clearCheckedBtn.addEventListener('click', () => {
       if (confirm('チェックした項目をすべてリセットしますか？')) {
         state.checkedItems = {};
+        if (state.customShoppingItems) {
+          state.customShoppingItems.forEach(it => { it.isChecked = false; });
+          saveCustomShoppingItems();
+        }
         saveChecked();
         renderShoppingList();
         showToast('チェックをリセットしました');
       }
     });
+  }
+
+  // 基本調味料の非表示スイッチ
+  const chkHideSeasonings = document.getElementById('chk-hide-seasonings');
+  if (chkHideSeasonings) {
+    chkHideSeasonings.checked = !!state.hideSeasonings;
+    chkHideSeasonings.addEventListener('change', (e) => {
+      toggleHideSeasonings(e.target.checked);
+    });
+  }
+
+  // 自由買い足しメモ追加フォーム
+  const formAddCustomItem = document.getElementById('form-add-custom-item');
+  if (formAddCustomItem) {
+    formAddCustomItem.addEventListener('submit', handleAddCustomShoppingItem);
   }
 
   const shareLineBtn = document.getElementById('btn-share-line');
@@ -1268,7 +1320,8 @@ function getSyncPayload() {
     weeklyPlan: state.weeklyPlan,
     checkedItems: state.checkedItems,
     childrenCount: state.childrenCount,
-    childrenPreferences: state.childrenPreferences
+    childrenPreferences: state.childrenPreferences,
+    customShoppingItems: state.customShoppingItems
   };
 }
 
@@ -1395,6 +1448,14 @@ function applyRemoteData(data, isSilent = false) {
       state.childrenPreferences = data.childrenPreferences;
       localStorage.setItem(STORAGE_KEY_CHILDREN_PREF, JSON.stringify(state.childrenPreferences));
       changed = true;
+    }
+
+    if (data.customShoppingItems && Array.isArray(data.customShoppingItems)) {
+      if (JSON.stringify(data.customShoppingItems) !== JSON.stringify(state.customShoppingItems)) {
+        state.customShoppingItems = data.customShoppingItems;
+        localStorage.setItem(STORAGE_KEY_CUSTOM_SHOPPING, JSON.stringify(state.customShoppingItems));
+        changed = true;
+      }
     }
 
     state.lastSyncTime = data.updatedAt || Date.now();
@@ -2299,16 +2360,100 @@ function formatAmount(amount, unit) {
   return `約 ${Math.round(amount * 10) / 10} ${unit}`;
 }
 
+// 家庭の基本常備調味料・基本ストック（隠す対象）
+const BASIC_PANTRY_SEASONINGS = [
+  'しょうゆ', '醤油', '濃口しょうゆ', '薄口しょうゆ',
+  'みりん', '味醂', '本みりん',
+  '料理酒', '酒', '清酒',
+  '塩', '食塩', '塩こしょう', 'こしょう', '黒こしょう', '白こしょう', '粗挽き黒こしょう',
+  '砂糖', '上白糖', 'きび砂糖', '三温糖',
+  'サラダ油', 'ごま油', 'オリーブオイル', '米油', '油',
+  '酢', '穀物酢', '米酢',
+  'マヨネーズ', 'ケチャップ', 'トマトケチャップ',
+  '味噌', 'みそ', '赤みそ', '合わせ味噌',
+  'だしの素', '和風だしの素', '和風顆粒だし', 'ほんだし',
+  '鶏がらスープの素', '顆粒鶏がらスープ', '鶏ガラスープの素',
+  'コンソメ', '顆粒コンソメ', '固形コンソメ',
+  'めんつゆ', 'めんつゆ（3倍濃縮）', 'めんつゆ（2倍濃縮）', '白だし',
+  '片栗粉', '小麦粉', '薄力粉',
+  'すりごま', 'いりごま', '白ごま', '黒ごま',
+  'にんにくチューブ', '生姜チューブ', 'おろし生姜', 'おろしにんにく', 'チューブ生姜', 'チューブにんにく',
+  'バター', '有塩バター', 'マーガリン'
+];
+
+function isBasicSeasoning(name) {
+  if (!name) return false;
+  const clean = name.trim();
+  return BASIC_PANTRY_SEASONINGS.some(s => clean === s || clean.includes(s) || s.includes(clean));
+}
+
+// 自由買い足しメモの操作
+window.handleAddCustomShoppingItem = function(e) {
+  if (e) e.preventDefault();
+  const input = document.getElementById('input-custom-item-name');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) return;
+
+  const newItem = {
+    id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+    name: name,
+    isChecked: false
+  };
+
+  if (!state.customShoppingItems) state.customShoppingItems = [];
+  state.customShoppingItems.push(newItem);
+  saveCustomShoppingItems();
+  input.value = '';
+  renderShoppingList();
+  showToast(`「${name}」を買い足しメモに追加しました！`);
+};
+
+window.toggleCheckCustomItem = function(id) {
+  if (!state.customShoppingItems) return;
+  const item = state.customShoppingItems.find(it => it.id === id);
+  if (!item) return;
+  item.isChecked = !item.isChecked;
+  saveCustomShoppingItems();
+  renderShoppingList();
+};
+
+window.removeCustomShoppingItem = function(id) {
+  if (!state.customShoppingItems) return;
+  const item = state.customShoppingItems.find(it => it.id === id);
+  const name = item ? item.name : 'アイテム';
+  state.customShoppingItems = state.customShoppingItems.filter(it => it.id !== id);
+  saveCustomShoppingItems();
+  renderShoppingList();
+  showToast(`「${name}」を削除しました`);
+};
+
+window.toggleHideSeasonings = function(val) {
+  state.hideSeasonings = typeof val === 'boolean' ? val : !state.hideSeasonings;
+  saveHideSeasonings();
+  const chk = document.getElementById('chk-hide-seasonings');
+  if (chk) chk.checked = state.hideSeasonings;
+  renderShoppingList();
+  if (state.hideSeasonings) {
+    showToast('🧂 基本調味料を隠しました（肉・野菜が見やすくなりました）');
+  } else {
+    showToast('🧂 基本調味料を表示しました');
+  }
+};
+
 function renderShoppingList() {
   const container = document.getElementById('shopping-list-container');
   const purchasedContainer = document.getElementById('shopping-purchased-container');
   const purchasedBadge = document.getElementById('purchased-count-badge');
+  const chkHide = document.getElementById('chk-hide-seasonings');
+  if (chkHide) chkHide.checked = !!state.hideSeasonings;
   if (!container) return;
 
   const aggregated = calculateAggregatedShoppingList();
   const keys = Object.keys(aggregated);
+  const customItems = Array.isArray(state.customShoppingItems) ? state.customShoppingItems : [];
 
-  if (keys.length === 0) {
+  if (keys.length === 0 && customItems.length === 0) {
     container.innerHTML = `
       <div class="col-span-full text-center py-12 text-slate-400">
         <i data-lucide="shopping-cart" class="w-12 h-12 mx-auto mb-3 opacity-40"></i>
@@ -2324,6 +2469,7 @@ function renderShoppingList() {
   const grouped = {};
   AISLE_ORDER.forEach(aisle => { grouped[aisle] = []; });
   const purchasedItems = [];
+  let hiddenBasicSeasoningsCount = 0;
 
   keys.forEach(key => {
     const item = aggregated[key];
@@ -2332,10 +2478,60 @@ function renderShoppingList() {
       purchasedItems.push({ key, ...item });
     } else {
       const aisle = grouped[item.aisle] ? item.aisle : '調味料・その他';
-      grouped[aisle].push({ key, ...item });
+      if (aisle === '調味料・その他' && state.hideSeasonings && isBasicSeasoning(item.name)) {
+        hiddenBasicSeasoningsCount++;
+      } else {
+        grouped[aisle].push({ key, ...item });
+      }
     }
   });
 
+  // カスタム買い足しメモの仕分け
+  const uncheckCustomItems = customItems.filter(it => !it.isChecked);
+  const checkedCustomItems = customItems.filter(it => it.isChecked);
+
+  container.innerHTML = '';
+  let totalUncheckedCount = 0;
+
+  // 1. 自由な買い足しメモコーナー（未チェックのメモがある場合、最上部に全幅表示）
+  if (uncheckCustomItems.length > 0) {
+    totalUncheckedCount += uncheckCustomItems.length;
+    const memoSection = document.createElement('div');
+    memoSection.className = 'col-span-full bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-amber-50/70 rounded-3xl border-2 border-amber-200/90 shadow-xs overflow-hidden mb-2';
+    
+    let memoHtml = uncheckCustomItems.map(item => `
+      <div class="flex items-center justify-between p-3.5 hover:bg-amber-100/50 rounded-2xl select-none transition-all group">
+        <label class="flex items-center gap-3 cursor-pointer flex-1">
+          <input type="checkbox" 
+                 class="w-5 h-5 rounded-md text-amber-600 focus:ring-amber-400 border-amber-300 transition cursor-pointer accent-amber-600"
+                 onchange="toggleCheckCustomItem('${item.id}')">
+          <span class="text-sm font-black text-slate-800 flex items-center gap-2">
+            <span class="text-xs px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900 font-bold">メモ</span>
+            <span>${item.name}</span>
+          </span>
+        </label>
+        <button onclick="removeCustomShoppingItem('${item.id}')" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer" title="削除">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+      </div>
+    `).join('');
+
+    memoSection.innerHTML = `
+      <div class="px-5 py-3 border-b border-amber-200/80 flex items-center justify-between bg-gradient-to-r from-amber-200/50 via-orange-100/40 to-amber-100/50">
+        <div class="flex items-center gap-2">
+          <span class="text-lg leading-none">📝</span>
+          <h3 class="font-black text-amber-950 text-sm">買い足し・日用品メモ</h3>
+        </div>
+        <span class="text-xs text-amber-900 font-bold bg-white/95 px-2.5 py-0.5 rounded-full border border-amber-300 shadow-2xs">${uncheckCustomItems.length}件</span>
+      </div>
+      <div class="p-2 divide-y divide-amber-200/50">
+        ${memoHtml}
+      </div>
+    `;
+    container.appendChild(memoSection);
+  }
+
+  // 2. 売り場別食材コーナー
   const aisleConfig = {
     '野菜': { icon: 'salad', emoji: '🥬', color: 'text-emerald-800 bg-emerald-100 border border-emerald-200' },
     '肉・魚': { icon: 'drumstick', emoji: '🥩', color: 'text-rose-800 bg-rose-100 border border-rose-200' },
@@ -2343,13 +2539,9 @@ function renderShoppingList() {
     '調味料・その他': { icon: 'soup', emoji: '🧂', color: 'text-indigo-800 bg-indigo-100 border border-indigo-200' }
   };
 
-  container.innerHTML = '';
-
-  let totalUncheckedCount = 0;
-
   AISLE_ORDER.forEach(aisle => {
     const items = grouped[aisle];
-    if (items.length === 0) return;
+    if (items.length === 0 && (aisle !== '調味料・その他' || hiddenBasicSeasoningsCount === 0)) return;
     totalUncheckedCount += items.length;
 
     const conf = aisleConfig[aisle] || { icon: 'tag', emoji: '🏷️', color: 'text-slate-700 bg-slate-100 border border-slate-200' };
@@ -2375,6 +2567,22 @@ function renderShoppingList() {
       `;
     }).join('');
 
+    // 調味料が非表示中の場合のお知らせバー
+    let seasoningNotice = '';
+    if (aisle === '調味料・その他' && hiddenBasicSeasoningsCount > 0) {
+      seasoningNotice = `
+        <div class="m-3 p-2.5 rounded-2xl bg-indigo-50/90 border border-indigo-200/80 text-[11px] text-indigo-950 flex items-center justify-between shadow-2xs">
+          <div class="flex items-center gap-1.5 font-bold">
+            <span class="text-sm">🧂</span>
+            <span>常備調味料 <strong>${hiddenBasicSeasoningsCount}件</strong> を非表示中</span>
+          </div>
+          <button onclick="toggleHideSeasonings(false)" class="text-indigo-700 hover:text-indigo-900 font-black underline cursor-pointer text-[11px] px-2 py-1 rounded-lg hover:bg-indigo-100 transition-colors">
+            すべて表示する
+          </button>
+        </div>
+      `;
+    }
+
     section.innerHTML = `
       <div class="px-5 py-3 border-b border-sky-100 flex items-center justify-between bg-gradient-to-r from-sky-50/70 via-teal-50/40 to-lime-50/50">
         <div class="flex items-center gap-2">
@@ -2383,35 +2591,59 @@ function renderShoppingList() {
         </div>
         <span class="text-xs text-teal-900 font-bold bg-white/90 px-2.5 py-0.5 rounded-full border border-teal-200/80 shadow-2xs">${items.length}品目</span>
       </div>
+      ${seasoningNotice}
       <div class="p-3 divide-y divide-sky-100/60">
-        ${itemsHtml}
+        ${itemsHtml || '<div class="text-center py-4 text-slate-400 text-xs font-medium">基本調味料を隠しているため表示中のアイテムはありません</div>'}
       </div>
     `;
 
     container.appendChild(section);
   });
 
-  if (totalUncheckedCount === 0 && purchasedItems.length > 0) {
+  if (totalUncheckedCount === 0 && (purchasedItems.length > 0 || checkedCustomItems.length > 0)) {
     const emptyNotice = document.createElement('div');
     emptyNotice.className = 'col-span-full text-center py-8 bg-white rounded-3xl border-2 border-emerald-200 p-6 shadow-xs';
     emptyNotice.innerHTML = `
       <span class="text-4xl block mb-2">🎉</span>
-      <h4 class="font-black text-emerald-800 text-base mb-1">すべての食材を購入完了しました！</h4>
+      <h4 class="font-black text-emerald-800 text-base mb-1">すべての食材・買い足しメモを購入完了しました！</h4>
       <p class="text-xs text-slate-500">お買い出しお疲れ様でした。下の「購入済みの食材」をタップすると元に戻せます。</p>
     `;
     container.appendChild(emptyNotice);
   }
 
   // 購入済み食材エリアの描画
+  const totalPurchasedCount = purchasedItems.length + checkedCustomItems.length;
   if (purchasedContainer) {
-    if (purchasedItems.length === 0) {
+    if (totalPurchasedCount === 0) {
       purchasedContainer.innerHTML = `
         <div class="text-center py-4 text-slate-400 text-xs font-medium">
           購入済みの食材はまだありません（チェックした食材がここに移動します）
         </div>
       `;
     } else {
-      purchasedContainer.innerHTML = purchasedItems.map(item => `
+      let purchasedHtml = '';
+
+      // カスタムメモの購入済み
+      if (checkedCustomItems.length > 0) {
+        purchasedHtml += checkedCustomItems.map(item => `
+          <div class="flex items-center justify-between p-2.5 bg-white/80 hover:bg-white rounded-xl border border-amber-200/80 cursor-pointer select-none transition-all opacity-60 hover:opacity-100 group"
+               onclick="toggleCheckCustomItem('${item.id}')" title="タップで買い物リストに戻す">
+            <div class="flex items-center gap-2.5">
+              <span class="w-4 h-4 rounded bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black">✓</span>
+              <span class="text-xs font-bold text-slate-500 line-through group-hover:text-slate-800">
+                ${item.name}
+              </span>
+              <span class="text-[10px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold">メモ</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-teal-600 font-bold hidden group-hover:inline">元に戻す</span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // レシピ食材の購入済み
+      purchasedHtml += purchasedItems.map(item => `
         <div class="flex items-center justify-between p-2.5 bg-white/80 hover:bg-white rounded-xl border border-slate-200/60 cursor-pointer select-none transition-all opacity-60 hover:opacity-100 group"
              onclick="toggleCheckItem('${item.key}')" title="タップで買い物リストに戻す">
           <div class="flex items-center gap-2.5">
@@ -2429,11 +2661,13 @@ function renderShoppingList() {
           </div>
         </div>
       `).join('');
+
+      purchasedContainer.innerHTML = purchasedHtml;
     }
   }
 
   if (purchasedBadge) {
-    purchasedBadge.textContent = `${purchasedItems.length}件`;
+    purchasedBadge.textContent = `${totalPurchasedCount}件`;
   }
 
   safeCreateIcons();
@@ -2463,19 +2697,36 @@ function generateShoppingListText() {
   const grouped = {};
   AISLE_ORDER.forEach(aisle => { grouped[aisle] = []; });
 
+  let hiddenCount = 0;
   Object.keys(aggregated).forEach(key => {
     const item = aggregated[key];
     const isChecked = !!state.checkedItems[key];
     if (!isChecked) {
       const aisle = grouped[item.aisle] ? item.aisle : '調味料・その他';
-      grouped[aisle].push(item);
+      if (aisle === '調味料・その他' && state.hideSeasonings && isBasicSeasoning(item.name)) {
+        hiddenCount++;
+      } else {
+        grouped[aisle].push(item);
+      }
     }
   });
 
+  const customItems = Array.isArray(state.customShoppingItems) ? state.customShoppingItems.filter(it => !it.isChecked) : [];
   const weeklyCost = state.weeklyPlan ? calculatePlanTotalCost(state.weeklyPlan) : 0;
   let text = `【🛒 今週の買い物リスト（${state.servings}人分・目安 ¥${weeklyCost.toLocaleString()}）】\n`;
 
   let totalUnchecked = 0;
+
+  // 1. 自由な買い足しメモ
+  if (customItems.length > 0) {
+    text += `\n■ 📝 買い足し・日用品メモ\n`;
+    customItems.forEach(item => {
+      text += `・${item.name}\n`;
+      totalUnchecked++;
+    });
+  }
+
+  // 2. 売り場別食材
   AISLE_ORDER.forEach(aisle => {
     const items = grouped[aisle];
     if (items.length > 0) {
@@ -2488,7 +2739,11 @@ function generateShoppingListText() {
   });
 
   if (totalUnchecked === 0) {
-    return `【🛒 今週の買い物リスト（${state.servings}人分）】\nすべての食材を購入済みです！🎉`;
+    return `【🛒 今週の買い物リスト（${state.servings}人分）】\nすべての食材・メモを購入済みです！🎉`;
+  }
+
+  if (state.hideSeasonings && hiddenCount > 0) {
+    text += `\n※家にある基本調味料（しょうゆ、酒、油等）はリストから除外しています🧂\n`;
   }
 
   text += `\n※目標予算: ¥${state.targetBudget.toLocaleString()} / 冷蔵庫の在庫を確認してご購入ください✨\n\n🍳 節約献立＆買い物リスト作成:\nhttps://fi1025re-commits.github.io/frugal-meal-planner/`;
@@ -2501,7 +2756,6 @@ function shareToLine() {
   const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
   window.open(lineUrl, '_blank');
 }
-
 
 function copyShoppingListToClipboard() {
   const text = generateShoppingListText();

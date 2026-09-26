@@ -360,6 +360,32 @@
             一般的なスーパーの標準相場に基づく「おかず食材費」の概算目安です。お米・基本調味料代や、店舗のパック売り規格（グラム単位の端数）、季節・天候による価格変動により、実際のレジお会計合計とは前後します。1週間の買い出し配分や節約ペースの目安としてご活用ください。
           </p>
         </div>
+
+        <!-- 基本調味料の非表示トグル ＆ 自由な買い足しメモ追加バー -->
+        <div class="pt-2 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <!-- 調味料非表示スイッチ -->
+          <label class="inline-flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700 hover:text-indigo-900 transition-colors">
+            <input type="checkbox" id="chk-hide-seasonings" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-400 accent-indigo-600 cursor-pointer">
+            <span class="flex items-center gap-1">
+              <span>🧂</span>
+              <span>家にある基本調味料（しょうゆ・酒・塩等）を隠す</span>
+            </span>
+          </label>
+
+          <!-- 自由メモ追加フォーム -->
+          <form id="form-add-custom-item" class="flex items-center gap-2 w-full md:w-auto">
+            <div class="relative flex-1 md:w-64">
+              <input type="text" id="input-custom-item-name" placeholder="買い足しメモ（例: 牛乳, パン, 卵）" 
+                     maxlength="40"
+                     class="w-full text-xs px-3 py-2 pl-8 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 font-medium text-slate-800">
+              <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">📝</span>
+            </div>
+            <button type="submit" id="btn-add-custom-item" class="px-3 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 transition-all shadow-xs active:scale-95 cursor-pointer shrink-0 flex items-center gap-1">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>追加</span>
+            </button>
+          </form>
+        </div>
       </div>
 
       <!-- 売り場別の買い物アイテム一覧 -->
@@ -1030,8 +1056,8 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20260926c"></script>
-  <script src="app.js?v=20260926c"></script>
+  <script src="recipes.js?v=20260926d"></script>
+  <script src="app.js?v=20260926d"></script>
 
   <!-- PWA Service Worker 登録 -->
   <script>
