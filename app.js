@@ -478,11 +478,13 @@ function canChildEat(recipe, childPref) {
   return !hasDislikedIngredient;
 }
 
-// 1つの献立プランの総コストを計算
-function calculatePlanTotalCost(plan) {
+// 献立プランの総コストを計算（filterDaysが指定された場合は対象曜日のみ合算）
+function calculatePlanTotalCost(plan, filterDays = null) {
   let cost = 0;
   if (!plan) return 0;
-  Object.values(plan).forEach(day => {
+  DAYS_OF_WEEK.forEach(d => {
+    if (filterDays && !filterDays.includes(d.id)) return;
+    const day = plan[d.id];
     if (!day) return;
     const main = getRecipeById(day.main);
     const side = getRecipeById(day.side);
@@ -1559,7 +1561,8 @@ function getSyncPayload() {
     checkedItems: state.checkedItems,
     childrenCount: state.childrenCount,
     childrenPreferences: state.childrenPreferences,
-    customShoppingItems: state.customShoppingItems
+    customShoppingItems: state.customShoppingItems,
+    shoppingDays: state.shoppingDays
   };
 }
 
@@ -1692,6 +1695,14 @@ function applyRemoteData(data, isSilent = false) {
       if (JSON.stringify(data.customShoppingItems) !== JSON.stringify(state.customShoppingItems)) {
         state.customShoppingItems = data.customShoppingItems;
         localStorage.setItem(STORAGE_KEY_CUSTOM_SHOPPING, JSON.stringify(state.customShoppingItems));
+        changed = true;
+      }
+    }
+
+    if (data.shoppingDays && Array.isArray(data.shoppingDays)) {
+      if (JSON.stringify(data.shoppingDays) !== JSON.stringify(state.shoppingDays)) {
+        state.shoppingDays = data.shoppingDays;
+        localStorage.setItem(STORAGE_KEY_SHOPPING_DAYS, JSON.stringify(state.shoppingDays));
         changed = true;
       }
     }
@@ -2185,8 +2196,9 @@ function updateSummaryBadge() {
     }
   }
 
+  const shoppingCost = state.weeklyPlan ? calculatePlanTotalCost(state.weeklyPlan, state.shoppingDays) : 0;
   const shoppingBudgetEl = document.getElementById('shopping-estimated-budget');
-  if (shoppingBudgetEl) shoppingBudgetEl.textContent = `約 ¥${weeklyTotalCost.toLocaleString()}`;
+  if (shoppingBudgetEl) shoppingBudgetEl.textContent = `約 ¥${shoppingCost.toLocaleString()}`;
 }
 
 function updatePreferenceBadge() {
@@ -2280,7 +2292,10 @@ function renderWeeklyPlan() {
       dayCard.innerHTML = `
         <div class="px-5 py-3 border-b border-sky-100 flex items-center justify-between flex-wrap gap-2 ${dayBg}">
           <div class="flex items-center gap-2 flex-wrap">
-            <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-400 cursor-pointer" onchange="toggleShoppingDay('${day.id}')" title="買い物リストに含める">
+            <label class="inline-flex items-center gap-1.5 cursor-pointer bg-white/95 px-2 py-0.5 rounded-lg border ${isChecked ? 'border-teal-300 text-teal-900 shadow-2xs' : 'border-slate-300 text-slate-400 opacity-80'} transition-all hover:bg-white select-none active:scale-95" title="チェックを外すとこの日の食材が買い物リストから除外されます（外食や予定の日に便利）">
+              <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 text-teal-600 rounded border-slate-300 focus:ring-teal-400 cursor-pointer" onchange="toggleShoppingDay('${day.id}')">
+              <span class="text-[11px] font-black">${isChecked ? 'リスト反映' : '除外中'}</span>
+            </label>
             <span class="text-base font-black">${theme.name}</span>
             <span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-white/90 border border-current shadow-2xs">${state.servings}人分 約¥${dayCost * state.servings}</span>
             ${proteinText ? `<span class="text-[11px] font-bold text-slate-700 bg-white/90 px-2 py-0.5 rounded-full border border-slate-200/80 shadow-2xs">${proteinText}</span>` : ''}
@@ -2526,14 +2541,25 @@ window.toggleBlacklist = function(recipeId, event) {
 };
 
 window.toggleShoppingDay = function(dayId) {
-  if (state.shoppingDays.includes(dayId)) {
+  const isCurrentlyChecked = state.shoppingDays.includes(dayId);
+  const dayObj = DAYS_OF_WEEK.find(d => d.id === dayId);
+  const dayLabel = dayObj ? dayObj.name : `${dayId}曜日`;
+
+  if (isCurrentlyChecked) {
     state.shoppingDays = state.shoppingDays.filter(d => d !== dayId);
+    showToast(`🛒 ${dayLabel}の食材を買い物リストから外しました（外食・予定用）`);
   } else {
     state.shoppingDays.push(dayId);
+    showToast(`🛒 ${dayLabel}の食材を買い物リストに追加しました`);
   }
   saveShoppingDays();
+  renderWeeklyPlan();
   renderShoppingList();
   updateSummaryBadge();
+
+  if (state.familySyncCode) {
+    pushSyncDataDebounced();
+  }
 };
 
 function calculateAggregatedShoppingList() {
@@ -2685,6 +2711,25 @@ function renderShoppingList() {
   const purchasedBadge = document.getElementById('purchased-count-badge');
   const chkHide = document.getElementById('chk-hide-seasonings');
   if (chkHide) chkHide.checked = !!state.hideSeasonings;
+
+  // 献立の曜日チェック連動バッジの更新
+  const daysBadge = document.getElementById('shopping-included-days-badge');
+  if (daysBadge) {
+    const activeDays = state.shoppingDays || [];
+    const count = activeDays.length;
+    if (count === 7) {
+      daysBadge.innerHTML = `<span class="px-2.5 py-1 rounded-lg bg-teal-100 text-teal-800 font-black text-[11px] border border-teal-200">🛒 全7日分を反映中</span>`;
+    } else if (count === 0) {
+      daysBadge.innerHTML = `<span class="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 font-black text-[11px] border border-rose-200">⚠️ 全曜日が除外中</span>`;
+    } else {
+      const dayNames = DAYS_OF_WEEK
+        .filter(d => activeDays.includes(d.id))
+        .map(d => d.name.replace(/^[^\w\s]*\s*/, '').replace('曜日', ''))
+        .join('・');
+      daysBadge.innerHTML = `<span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-black text-[11px] border border-amber-300">🛒 ${count}日分（${dayNames}）反映中</span>`;
+    }
+  }
+
   if (!container) return;
 
   const aggregated = calculateAggregatedShoppingList();
