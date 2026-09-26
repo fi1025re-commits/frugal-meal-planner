@@ -1,0 +1,33 @@
+{
+  "name": "食費節約献立＆買い物リスト作成",
+  "short_name": "節約献立",
+  "description": "子育て家庭に特化した、1週間分の食費節約献立とスーパー売り場別買い物リストを自動作成する完全無料ツール。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0f7ff",
+  "theme_color": "#0ea5e9",
+  "lang": "ja",
+  "categories": ["lifestyle", "food", "utilities"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

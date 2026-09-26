@@ -16,6 +16,14 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
+  <!-- PWA & アイコン設定 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0ea5e9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="節約献立">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <!-- ファビコン (SVG Data URI) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍳</text></svg>">
 
@@ -135,6 +143,12 @@
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <!-- PWAアプリ追加ボタン (対応端末で自動表示) -->
+          <button id="btn-install-pwa" class="hidden inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-black text-amber-900 bg-amber-50/90 hover:bg-amber-100 transition-all border-2 border-amber-300 shadow-2xs active:scale-95 cursor-pointer animate-pulse" title="ホーム画面に追加してアプリとして使う">
+            <span class="text-sm leading-none">📲</span>
+            <span>アプリ追加</span>
+          </button>
+
           <!-- 使い方ガイドボタン -->
           <button id="btn-open-guide" onclick="openGuideModal()" class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-bold text-teal-800 bg-teal-50/90 hover:bg-teal-100 transition-all border-2 border-teal-200 shadow-2xs active:scale-95 cursor-pointer" title="使い方を見る">
             <span class="text-sm leading-none">❓</span>
@@ -870,6 +884,10 @@
             <span>❓ よくある質問・もっと便利な使い方</span>
           </h4>
           <div class="space-y-2 text-[11px]">
+            <div class="bg-indigo-50/80 p-2.5 rounded-xl border border-indigo-200/80">
+              <span class="font-bold text-indigo-900 block mb-0.5">📱 スマホのホーム画面に追加（本物のアプリのように使う）</span>
+              <span class="text-slate-600 block">SafariやChromeのメニューから<strong>「ホーム画面に追加」</strong>をすると、スマホに🍳アプリアイコンが追加されます！電波が届きにくい<strong>地下スーパーでも圏外のままサクサク開ける</strong>ようになります。</span>
+            </div>
             <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
               <span class="font-bold text-slate-800 block mb-0.5">Q. 夫婦や家族のスマホ同士でリアルタイム共有できる？</span>
               <span class="text-slate-600">上部の<strong>「👥 家族共有」</strong>を開き、相手のスマホカメラでQRコードを読み取るだけ！ログインやパスワード不要で、同じ献立や買い物リストを一緒に使えます。</span>
@@ -1012,8 +1030,19 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20260926b"></script>
-  <script src="app.js?v=20260926b"></script>
+  <script src="recipes.js?v=20260926c"></script>
+  <script src="app.js?v=20260926c"></script>
+
+  <!-- PWA Service Worker 登録 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('PWA ServiceWorker registered with scope:', reg.scope))
+          .catch((err) => console.warn('PWA ServiceWorker registration failed:', err));
+      });
+    }
+  </script>
 </body>
 
 </html>

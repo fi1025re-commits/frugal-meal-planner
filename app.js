@@ -1048,6 +1048,65 @@ function setupEventListeners() {
   if (btnResetData) {
     btnResetData.addEventListener('click', handleResetData);
   }
+
+  // PWA インストール支援
+  setupPwaInstall();
+}
+
+// ==================== PWA インストール支援 ====================
+let deferredInstallPrompt = null;
+
+function setupPwaInstall() {
+  const btnInstall = document.getElementById('btn-install-pwa');
+  if (!btnInstall) return;
+
+  // すでにPWA (standalone) として実行されている場合はボタン不要
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (isStandalone) {
+    btnInstall.classList.add('hidden');
+    return;
+  }
+
+  // Android / Chrome: インストール可能イベント検知
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    btnInstall.classList.remove('hidden');
+    safeCreateIcons();
+  });
+
+  // モバイル端末（iOS Safari等を含む）ならボタンを表示して案内可能にする
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    btnInstall.classList.remove('hidden');
+    safeCreateIcons();
+  }
+
+  btnInstall.addEventListener('click', async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const choiceResult = await deferredInstallPrompt.userChoice;
+      if (choiceResult && choiceResult.outcome === 'accepted') {
+        showToast('🎉 アプリのインストールを開始しました！');
+      }
+      deferredInstallPrompt = null;
+      btnInstall.classList.add('hidden');
+    } else {
+      // iOS Safariまたは手動インストールの案内
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIOS) {
+        showToast('Safari下部の共有ボタン [↑] を押し、「ホーム画面に追加」をタップしてください📲');
+      } else {
+        showToast('ブラウザ右上のメニュー(︙)から「ホーム画面に追加」または「アプリをインストール」できます📲');
+      }
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    btnInstall.classList.add('hidden');
+    deferredInstallPrompt = null;
+    showToast('🎉 ホーム画面にアプリを追加しました！');
+  });
 }
 
 // ==================== スマホ実機確認モーダル制御 ====================
