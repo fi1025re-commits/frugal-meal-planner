@@ -1145,6 +1145,7 @@ function renderPrintWeeklyCalendar(container) {
                      (soupRecipe ? soupRecipe.approxCostPerPerson : 0)) * state.servings;
 
     return {
+      id: day.id,
       name: day.name,
       dayTheme: theme.name,
       protein: proteinText,
@@ -1158,97 +1159,87 @@ function renderPrintWeeklyCalendar(container) {
   const totalCost = calculatePlanTotalCost(state.weeklyPlan);
 
   container.innerHTML = `
-    <div style="width: 100%; height: 185mm; max-height: 185mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;">
+    <div style="width: 100%; box-sizing: border-box; font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif; color: #0f172a; padding: 0;">
       
       <!-- ヘッダー -->
-      <div style="border-bottom: 2.5px solid #0f172a; padding-bottom: 3px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div style="border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: flex-end;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 22px; line-height: 1;">🍳</span>
           <div>
-            <div style="font-size: 16px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">1週間の食費節約献立カレンダー（冷蔵庫用）</div>
+            <div style="font-size: 15px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">1週間の食費節約献立カレンダー（冷蔵庫用）</div>
             <div style="font-size: 9px; color: #475569; font-weight: bold;">お肉・お魚・和洋中バランス最適化 ＆ 食材使い回し献立</div>
           </div>
-          <span style="font-size: 11px; font-weight: 900; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; border: 1px solid #7dd3fc; margin-left: 6px;">
-            ${state.servings}人分
-          </span>
-          <span style="font-size: 11px; font-weight: 900; background: #ecfdf5; color: #047857; padding: 2px 8px; border-radius: 6px; border: 1px solid #6ee7b7;">
-            推定計: 約¥${totalCost.toLocaleString()}（目標: ¥${state.targetBudget.toLocaleString()}）
-          </span>
         </div>
-        <div style="font-size: 9px; color: #64748b; text-align: right; line-height: 1.2;">
-          <div>作成日: ${new Date().toLocaleDateString('ja-JP')}</div>
-          <div style="font-weight: bold; color: #0f172a;">食費節約レシピまとめ集</div>
+        <div style="text-align: right; line-height: 1.25;">
+          <div style="display: flex; gap: 5px; justify-content: flex-end; align-items: center;">
+            <span style="font-size: 11px; font-weight: 900; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 5px; border: 1px solid #7dd3fc;">
+              ${state.servings}人分
+            </span>
+            <span style="font-size: 11px; font-weight: 900; background: #ecfdf5; color: #047857; padding: 2px 7px; border-radius: 5px; border: 1px solid #6ee7b7;">
+              推定計: 約¥${totalCost.toLocaleString()}（目標: ¥${state.targetBudget.toLocaleString()}）
+            </span>
+          </div>
+          <div style="font-size: 8px; color: #64748b; margin-top: 2px;">作成日: ${new Date().toLocaleDateString('ja-JP')} ｜ 食費節約レシピまとめ集</div>
         </div>
       </div>
 
-      <!-- 7日分の献立カレンダー表 -->
-      <table style="width: 100%; border-collapse: collapse; table-layout: fixed; flex: 1; margin-bottom: 4px;">
+      <!-- 月〜日の縦型テーブル（A4縦 1枚に完全収容） -->
+      <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 5px;">
         <thead>
-          <tr style="background: #f8fafc;">
-            ${daysInfo.map((d, idx) => `
-              <th style="border: 1.5px solid #334155; padding: 3px 2px; text-align: center; width: 14.28%;">
-                <div style="font-size: 12px; font-weight: 900; color: ${idx === 5 ? '#0284c7' : (idx === 6 ? '#e11d48' : '#0f172a')};">
-                  ${d.dayTheme}
-                </div>
-                <div style="font-size: 8.5px; color: #475569; font-weight: bold; display: flex; justify-content: center; gap: 3px; align-items: center; margin-top: 1px;">
-                  ${d.protein ? `<span style="background: #f1f5f9; padding: 0 3px; border-radius: 3px; border: 0.5px solid #cbd5e1;">${d.protein}</span>` : ''}
-                  <span>約¥${d.cost}</span>
-                </div>
-              </th>
-            `).join('')}
+          <tr style="background: #f1f5f9; border-top: 1.5px solid #334155; border-bottom: 1.5px solid #334155;">
+            <th style="border: 1px solid #334155; padding: 4px 2px; width: 17%; font-size: 10.5px; font-weight: 900; text-align: center; color: #0f172a;">曜日・テーマ</th>
+            <th style="border: 1px solid #334155; padding: 4px 6px; width: 33%; font-size: 10.5px; font-weight: 900; text-align: left; color: #c2410c;">【主菜】メインおかず</th>
+            <th style="border: 1px solid #334155; padding: 4px 6px; width: 23%; font-size: 10.5px; font-weight: 900; text-align: left; color: #15803d;">【副菜】小鉢・野菜</th>
+            <th style="border: 1px solid #334155; padding: 4px 6px; width: 19%; font-size: 10.5px; font-weight: 900; text-align: left; color: #0369a1;">【汁物】スープ</th>
+            <th style="border: 1px solid #334155; padding: 4px 2px; width: 8%; font-size: 9px; font-weight: 900; text-align: center; color: #334155;">完了</th>
           </tr>
         </thead>
         <tbody>
-          <!-- 主菜行 -->
-          <tr>
-            ${daysInfo.map(d => `
-              <td style="border: 1.5px solid #334155; padding: 4px 3px; vertical-align: top; background: #fffcf0; height: 38mm;">
-                <div style="font-size: 8.5px; font-weight: 900; color: #c2410c; margin-bottom: 1px;">【主菜】</div>
-                <div style="font-size: 10.5px; font-weight: 900; color: #0f172a; line-height: 1.25; word-break: break-word;">
+          ${daysInfo.map((d, idx) => `
+            <tr style="border-bottom: 1px solid #334155; height: 31mm;">
+              <!-- 曜日列 -->
+              <td style="border: 1px solid #334155; padding: 4px 3px; text-align: center; vertical-align: middle; background: ${idx === 5 ? '#f0f9ff' : (idx === 6 ? '#fff1f2' : '#f8fafc')};">
+                <div style="font-size: 12.5px; font-weight: 900; color: ${idx === 5 ? '#0284c7' : (idx === 6 ? '#e11d48' : '#0f172a')};">
+                  ${d.dayTheme}
+                </div>
+                ${d.protein ? `<div style="font-size: 8.5px; font-weight: bold; color: #475569; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 3px; padding: 1px 3px; margin: 2px auto; display: inline-block;">${d.protein}</div>` : ''}
+                <div style="font-size: 8px; font-weight: bold; color: #64748b;">約¥${d.cost}</div>
+              </td>
+              <!-- 主菜 -->
+              <td style="border: 1px solid #334155; padding: 5px 6px; vertical-align: middle; background: #fffcf0;">
+                <div style="font-size: 11px; font-weight: 900; color: #0f172a; line-height: 1.35; word-break: break-word;">
                   ${d.main}
                 </div>
               </td>
-            `).join('')}
-          </tr>
-          <!-- 副菜行 -->
-          <tr>
-            ${daysInfo.map(d => `
-              <td style="border: 1.5px solid #334155; padding: 4px 3px; vertical-align: top; background: #fbfdf9; height: 32mm;">
-                <div style="font-size: 8.5px; font-weight: 900; color: #15803d; margin-bottom: 1px;">【副菜】</div>
-                <div style="font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.2; word-break: break-word;">
+              <!-- 副菜 -->
+              <td style="border: 1px solid #334155; padding: 4px 6px; vertical-align: middle; background: #fbfdf9;">
+                <div style="font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.3; word-break: break-word;">
                   ${d.side}
                 </div>
               </td>
-            `).join('')}
-          </tr>
-          <!-- 汁物行 -->
-          <tr>
-            ${daysInfo.map(d => `
-              <td style="border: 1.5px solid #334155; padding: 4px 3px; vertical-align: top; background: #f8fafc; height: 28mm;">
-                <div style="font-size: 8.5px; font-weight: 900; color: #0369a1; margin-bottom: 1px;">【汁物】</div>
-                <div style="font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.2; word-break: break-word;">
+              <!-- 汁物 -->
+              <td style="border: 1px solid #334155; padding: 4px 6px; vertical-align: middle; background: #f8fafc;">
+                <div style="font-size: 9.5px; font-weight: bold; color: #334155; line-height: 1.3; word-break: break-word;">
                   ${d.soup}
                 </div>
               </td>
-            `).join('')}
-          </tr>
-          <!-- メモ・食材チェック行（手書き用スペース） -->
-          <tr>
-            ${daysInfo.map(() => `
-              <td style="border: 1.5px solid #334155; padding: 3px 3px; vertical-align: top; background: #ffffff; height: 25mm;">
-                <div style="font-size: 8px; color: #94a3b8; font-weight: bold;">メモ / 買い足し</div>
-                <div style="border-bottom: 0.5px dashed #cbd5e1; height: 7mm; margin-top: 2px;"></div>
-                <div style="border-bottom: 0.5px dashed #cbd5e1; height: 7mm;"></div>
+              <!-- チェック枠 -->
+              <td style="border: 1px solid #334155; padding: 4px 2px; text-align: center; vertical-align: middle; background: #ffffff;">
+                <div style="width: 14px; height: 14px; border: 1.5px solid #94a3b8; border-radius: 3px; margin: 0 auto;"></div>
               </td>
-            `).join('')}
-          </tr>
+            </tr>
+          `).join('')}
         </tbody>
       </table>
 
-      <!-- フッター -->
-      <div style="border-top: 1px dashed #94a3b8; padding-top: 2px; display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #475569;">
-        <div>💡 <strong>時短節約アドバイス:</strong> お肉は買ってきた日に下味冷凍すると平日は焼くだけ15分！半端に余ったお野菜は週末の具沢山味噌汁・スープに投入してロス0円。</div>
-        <div style="font-weight: bold; color: #64748b;">https://fi1025re-commits.github.io/frugal-meal-planner/</div>
+      <!-- フッターメモ＆節約ワンポイント -->
+      <div style="border: 1px solid #334155; border-radius: 5px; padding: 4px 8px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #334155;">
+        <div>
+          <strong>💡 冷蔵庫メモ・節約のコツ:</strong> 週末にまとめ買いして下味冷凍すると平日は焼くだけ15分！使い切れなかった端野菜はお味噌汁へ。
+        </div>
+        <div style="color: #64748b; font-weight: bold; shrink-0; margin-left: 8px;">
+          食費節約レシピまとめ集
+        </div>
       </div>
 
     </div>
