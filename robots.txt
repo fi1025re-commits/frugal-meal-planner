@@ -1,0 +1,6 @@
+# robots.txt for frugal-meal-planner
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://fi1025re-commits.github.io/frugal-meal-planner/sitemap.xml
