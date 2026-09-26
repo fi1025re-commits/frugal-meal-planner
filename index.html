@@ -1128,13 +1128,37 @@
   <script src="recipes.js?v=20260926f"></script>
   <script src="app.js?v=20260926f"></script>
 
-  <!-- PWA Service Worker 登録 -->
+  <!-- PWA Service Worker 登録 ＆ 自動アップデート検知 -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then((reg) => console.log('PWA ServiceWorker registered with scope:', reg.scope))
+          .then((reg) => {
+            // 起動時にサーバーへ即座に更新チェック
+            reg.update();
+
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('New version ready! Auto updating...');
+                    window.location.reload();
+                  }
+                });
+              }
+            });
+          })
           .catch((err) => console.warn('PWA ServiceWorker registration failed:', err));
+
+        // 新しいService Workerが有効化されたら自動リロード
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
       });
     }
   </script>
