@@ -1104,13 +1104,252 @@ function setupEventListeners() {
   // PWA インストール支援
   setupPwaInstall();
 
-  // 印刷前イベント（A4プリント用の動的データ反映）
-  window.addEventListener('beforeprint', () => {
-    const pServings = document.getElementById('print-servings-badge');
-    if (pServings) pServings.textContent = `${state.servings}人分`;
-    const pBudget = document.getElementById('print-budget-text');
-    if (pBudget) pBudget.textContent = `¥${state.targetBudget.toLocaleString()}`;
+  // 印刷前イベント（A4横1枚プリント用の動的テーブル生成）
+  window.addEventListener('beforeprint', updatePrintView);
+}
+
+// ==================== 印刷モード（A4横1枚）専用ビュー生成 ====================
+window.triggerPrintWeeklyPlan = function() {
+  updatePrintView();
+  setTimeout(() => {
+    window.print();
+  }, 50);
+};
+
+function updatePrintView() {
+  const container = document.getElementById('print-weekly-table-container');
+  if (!container) return;
+
+  if (state.activeTab === 'shopping') {
+    renderPrintShoppingList(container);
+  } else {
+    renderPrintWeeklyCalendar(container);
+  }
+}
+
+function renderPrintWeeklyCalendar(container) {
+  if (!state.weeklyPlan || typeof state.weeklyPlan !== 'object') {
+    container.innerHTML = '<div style="padding: 20px; text-align: center; font-size: 14px;">献立が生成されていません。「1週間の献立」画面で献立を生成してから印刷してください。</div>';
+    return;
+  }
+
+  const daysInfo = DAYS_OF_WEEK.map(day => {
+    const dayData = state.weeklyPlan[day.id] || {};
+    const mainRecipe = getRecipeById(dayData.main);
+    const sideRecipe = getRecipeById(dayData.side);
+    const soupRecipe = getRecipeById(dayData.soup);
+    const theme = DAY_THEMES[day.id] || { name: day.name };
+    const proteinText = mainRecipe && mainRecipe.proteinType ? (PROTEIN_ICONS[mainRecipe.proteinType] || '') : '';
+    const dayCost = ((mainRecipe ? mainRecipe.approxCostPerPerson : 0) +
+                     (sideRecipe ? sideRecipe.approxCostPerPerson : 0) +
+                     (soupRecipe ? soupRecipe.approxCostPerPerson : 0)) * state.servings;
+
+    return {
+      name: day.name,
+      dayTheme: theme.name,
+      protein: proteinText,
+      cost: Math.round(dayCost),
+      main: mainRecipe ? getCleanTitle(mainRecipe) : '-',
+      side: sideRecipe ? getCleanTitle(sideRecipe) : '-',
+      soup: soupRecipe ? getCleanTitle(soupRecipe) : '-'
+    };
   });
+
+  const totalCost = calculatePlanTotalCost(state.weeklyPlan);
+
+  container.innerHTML = `
+    <div style="width: 100%; height: 185mm; max-height: 185mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;">
+      
+      <!-- ヘッダー -->
+      <div style="border-bottom: 2.5px solid #0f172a; padding-bottom: 3px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 22px; line-height: 1;">🍳</span>
+          <div>
+            <div style="font-size: 16px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">1週間の食費節約献立カレンダー（冷蔵庫用）</div>
+            <div style="font-size: 9px; color: #475569; font-weight: bold;">お肉・お魚・和洋中バランス最適化 ＆ 食材使い回し献立</div>
+          </div>
+          <span style="font-size: 11px; font-weight: 900; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; border: 1px solid #7dd3fc; margin-left: 6px;">
+            ${state.servings}人分
+          </span>
+          <span style="font-size: 11px; font-weight: 900; background: #ecfdf5; color: #047857; padding: 2px 8px; border-radius: 6px; border: 1px solid #6ee7b7;">
+            推定計: 約¥${totalCost.toLocaleString()}（目標: ¥${state.targetBudget.toLocaleString()}）
+          </span>
+        </div>
+        <div style="font-size: 9px; color: #64748b; text-align: right; line-height: 1.2;">
+          <div>作成日: ${new Date().toLocaleDateString('ja-JP')}</div>
+          <div style="font-weight: bold; color: #0f172a;">食費節約レシピまとめ集</div>
+        </div>
+      </div>
+
+      <!-- 7日分の献立カレンダー表 -->
+      <table style="width: 100%; border-collapse: collapse; table-layout: fixed; flex: 1; margin-bottom: 4px;">
+        <thead>
+          <tr style="background: #f8fafc;">
+            ${daysInfo.map((d, idx) => `
+              <th style="border: 1.5px solid #334155; padding: 3px 2px; text-align: center; width: 14.28%;">
+                <div style="font-size: 12px; font-weight: 900; color: ${idx === 5 ? '#0284c7' : (idx === 6 ? '#e11d48' : '#0f172a')};">
+                  ${d.dayTheme}
+                </div>
+                <div style="font-size: 8.5px; color: #475569; font-weight: bold; display: flex; justify-content: center; gap: 3px; align-items: center; margin-top: 1px;">
+                  ${d.protein ? `<span style="background: #f1f5f9; padding: 0 3px; border-radius: 3px; border: 0.5px solid #cbd5e1;">${d.protein}</span>` : ''}
+                  <span>約¥${d.cost}</span>
+                </div>
+              </th>
+            `).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 主菜行 -->
+          <tr>
+            ${daysInfo.map(d => `
+              <td style="border: 1.5px solid #334155; padding: 4px 3px; vertical-align: top; background: #fffcf0; height: 38mm;">
+                <div style="font-size: 8.5px; font-weight: 900; color: #c2410c; margin-bottom: 1px;">【主菜】</div>
+                <div style="font-size: 10.5px; font-weight: 900; color: #0f172a; line-height: 1.25; word-break: break-word;">
+                  ${d.main}
+                </div>
+              </td>
+            `).join('')}
+          </tr>
+          <!-- 副菜行 -->
+          <tr>
+            ${daysInfo.map(d => `
+              <td style="border: 1.5px solid #334155; padding: 4px 3px; vertical-align: top; background: #fbfdf9; height: 32mm;">
+                <div style="font-size: 8.5px; font-weight: 900; color: #15803d; margin-bottom: 1px;">【副菜】</div>
+                <div style="font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.2; word-break: break-word;">
+                  ${d.side}
+                </div>
+              </td>
+            `).join('')}
+          </tr>
+          <!-- 汁物行 -->
+          <tr>
+            ${daysInfo.map(d => `
+              <td style="border: 1.5px solid #334155; padding: 4px 3px; vertical-align: top; background: #f8fafc; height: 28mm;">
+                <div style="font-size: 8.5px; font-weight: 900; color: #0369a1; margin-bottom: 1px;">【汁物】</div>
+                <div style="font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.2; word-break: break-word;">
+                  ${d.soup}
+                </div>
+              </td>
+            `).join('')}
+          </tr>
+          <!-- メモ・食材チェック行（手書き用スペース） -->
+          <tr>
+            ${daysInfo.map(() => `
+              <td style="border: 1.5px solid #334155; padding: 3px 3px; vertical-align: top; background: #ffffff; height: 25mm;">
+                <div style="font-size: 8px; color: #94a3b8; font-weight: bold;">メモ / 買い足し</div>
+                <div style="border-bottom: 0.5px dashed #cbd5e1; height: 7mm; margin-top: 2px;"></div>
+                <div style="border-bottom: 0.5px dashed #cbd5e1; height: 7mm;"></div>
+              </td>
+            `).join('')}
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- フッター -->
+      <div style="border-top: 1px dashed #94a3b8; padding-top: 2px; display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #475569;">
+        <div>💡 <strong>時短節約アドバイス:</strong> お肉は買ってきた日に下味冷凍すると平日は焼くだけ15分！半端に余ったお野菜は週末の具沢山味噌汁・スープに投入してロス0円。</div>
+        <div style="font-weight: bold; color: #64748b;">https://fi1025re-commits.github.io/frugal-meal-planner/</div>
+      </div>
+
+    </div>
+  `;
+}
+
+function renderPrintShoppingList(container) {
+  const aggregated = calculateAggregatedShoppingList();
+  const grouped = {};
+  AISLE_ORDER.forEach(aisle => { grouped[aisle] = []; });
+
+  let hiddenCount = 0;
+  Object.keys(aggregated).forEach(key => {
+    const item = aggregated[key];
+    const isChecked = !!state.checkedItems[key];
+    if (!isChecked) {
+      const aisle = grouped[item.aisle] ? item.aisle : '調味料・その他';
+      if (aisle === '調味料・その他' && state.hideSeasonings && isBasicSeasoning(item.name)) {
+        hiddenCount++;
+      } else {
+        grouped[aisle].push(item);
+      }
+    }
+  });
+
+  const customItems = Array.isArray(state.customShoppingItems) ? state.customShoppingItems.filter(it => !it.isChecked) : [];
+  const weeklyCost = state.weeklyPlan ? calculatePlanTotalCost(state.weeklyPlan) : 0;
+
+  container.innerHTML = `
+    <div style="width: 100%; height: 185mm; max-height: 185mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;">
+      
+      <!-- ヘッダー -->
+      <div style="border-bottom: 2px solid #0f172a; padding-bottom: 3px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">🛒</span>
+          <span style="font-size: 16px; font-weight: 900; color: #0f172a;">1週間分のまとめ買いリスト（売り場別）</span>
+          <span style="font-size: 11px; font-weight: bold; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; border: 1px solid #7dd3fc;">
+            ${state.servings}人分
+          </span>
+          <span style="font-size: 11px; font-weight: bold; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; border: 1px solid #6ee7b7;">
+            目安お会計: 約¥${weeklyCost.toLocaleString()}
+          </span>
+        </div>
+        <div style="font-size: 9px; color: #64748b;">発行日: ${new Date().toLocaleDateString('ja-JP')}</div>
+      </div>
+
+      <!-- 売り場別4列グリッド -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; flex: 1; margin-bottom: 6px;">
+        
+        <!-- 1. 野菜 -->
+        <div style="border: 1px solid #334155; border-radius: 6px; padding: 4px; background: #ffffff;">
+          <div style="font-size: 11px; font-weight: 900; color: #065f46; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 3px;">
+            🥬 野菜コーナー (${grouped['野菜'].length}品)
+          </div>
+          <div style="font-size: 9px; line-height: 1.4; color: #1e293b;">
+            ${grouped['野菜'].map(it => `<div>□ <strong>${it.name}</strong>: ${formatAmount(it.amount, it.unit)}</div>`).join('') || '<div style="color: #94a3b8;">なし</div>'}
+          </div>
+        </div>
+
+        <!-- 2. 肉・魚 -->
+        <div style="border: 1px solid #334155; border-radius: 6px; padding: 4px; background: #ffffff;">
+          <div style="font-size: 11px; font-weight: 900; color: #9f1239; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 3px;">
+            🥩 肉・魚コーナー (${grouped['肉・魚'].length}品)
+          </div>
+          <div style="font-size: 9px; line-height: 1.4; color: #1e293b;">
+            ${grouped['肉・魚'].map(it => `<div>□ <strong>${it.name}</strong>: ${formatAmount(it.amount, it.unit)}</div>`).join('') || '<div style="color: #94a3b8;">なし</div>'}
+          </div>
+        </div>
+
+        <!-- 3. 大豆・乳・加工品 -->
+        <div style="border: 1px solid #334155; border-radius: 6px; padding: 4px; background: #ffffff;">
+          <div style="font-size: 11px; font-weight: 900; color: #92400e; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 3px;">
+            🧈 大豆・乳・加工品 (${grouped['大豆・乳・加工品'].length}品)
+          </div>
+          <div style="font-size: 9px; line-height: 1.4; color: #1e293b;">
+            ${grouped['大豆・乳・加工品'].map(it => `<div>□ <strong>${it.name}</strong>: ${formatAmount(it.amount, it.unit)}</div>`).join('') || '<div style="color: #94a3b8;">なし</div>'}
+          </div>
+        </div>
+
+        <!-- 4. 調味料・メモ -->
+        <div style="border: 1px solid #334155; border-radius: 6px; padding: 4px; background: #ffffff; display: flex; flex-direction: column;">
+          <div style="font-size: 11px; font-weight: 900; color: #3730a3; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 3px;">
+            🧂 調味料・買い足し
+          </div>
+          <div style="font-size: 9px; line-height: 1.35; color: #1e293b; flex: 1;">
+            ${customItems.map(it => `<div style="color: #b45309;">□ <strong>[メモ] ${it.name}</strong></div>`).join('')}
+            ${grouped['調味料・その他'].map(it => `<div>□ <strong>${it.name}</strong>: ${formatAmount(it.amount, it.unit)}</div>`).join('')}
+            ${hiddenCount > 0 ? `<div style="font-size: 8px; color: #64748b; margin-top: 3px;">※基本常備品${hiddenCount}件除外中</div>` : ''}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- フッター -->
+      <div style="border-top: 1px dashed #94a3b8; padding-top: 2px; display: flex; justify-content: space-between; font-size: 8px; color: #64748b;">
+        <div>※カゴに入れたらチェックをつけて買い忘れを防止しましょう。冷蔵庫の在庫を確認して購入してください。</div>
+        <div>食費節約レシピまとめ集</div>
+      </div>
+
+    </div>
+  `;
 }
 
 // ==================== PWA インストール支援 ====================
