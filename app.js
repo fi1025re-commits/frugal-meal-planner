@@ -1526,7 +1526,7 @@ function normalizeFamilyCode(code) {
 
 // 共有URLの生成（URLが約70文字と極短いため、QRコードのドットが大きく粗く、スマホカメラで一瞬で読み取れる）
 function getFamilyShareUrl(code) {
-  const base = 'https://fi1025re-commits.github.io/frugal-meal-planner/';
+  const base = 'https://setsuyaku-recipe.github.io/';
   return `${base}?family=${encodeURIComponent(normalizeFamilyCode(code))}`;
 }
 
@@ -3029,7 +3029,7 @@ function generateShoppingListText() {
     text += `\n※家にある基本調味料（しょうゆ、酒、油等）はリストから除外しています🧂\n`;
   }
 
-  text += `\n※目標予算: ¥${state.targetBudget.toLocaleString()} / 冷蔵庫の在庫を確認してご購入ください✨\n\n🍳 節約献立＆買い物リスト作成:\nhttps://fi1025re-commits.github.io/frugal-meal-planner/`;
+  text += `\n※目標予算: ¥${state.targetBudget.toLocaleString()} / 冷蔵庫の在庫を確認してご購入ください✨\n\n🍳 節約献立＆買い物リスト作成:\nhttps://setsuyaku-recipe.github.io/`;
   return text;
 }
 
