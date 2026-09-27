@@ -1,5 +1,5 @@
 // Service Worker for 食費節約献立＆買い物リスト作成 (PWA)
-const CACHE_NAME = 'frugal-meal-planner-v6';
+const CACHE_NAME = 'frugal-meal-planner-v7';
 
 // オフライン動作用に初期キャッシュする静的アセット
 const PRECACHE_ASSETS = [
@@ -45,8 +45,8 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // POSTやPUTなどの非GETリクエスト、または外部同期API(kvdb.io)・解析はキャッシュしない
-  if (request.method !== 'GET' || url.origin.includes('kvdb.io') || url.origin.includes('google-analytics') || url.origin.includes('googletagmanager')) {
+  // POSTやPUTなどの非GETリクエスト、または外部同期API(kvdb.io)・解析・広告(AdSense)はキャッシュしない
+  if (request.method !== 'GET' || url.origin.includes('kvdb.io') || url.origin.includes('google-analytics') || url.origin.includes('googletagmanager') || url.origin.includes('googlesyndication') || url.origin.includes('doubleclick')) {
     return;
   }
 
