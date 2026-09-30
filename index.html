@@ -256,6 +256,140 @@
       .recipe-card-link { font-size:10px; }
       .recipe-register-btn { width:100%; justify-content:center; }
     }
+
+    /* ===== Home clean & warm refresh ===== */
+    :root{
+      --home-bg:#f8f5ef;
+      --home-paper:#fffdf9;
+      --home-ink:#3f3a34;
+      --home-muted:#7b736b;
+      --home-line:#e8e0d6;
+      --home-green:#667a5f;
+      --home-green-dark:#52644c;
+      --home-green-soft:#eef2ea;
+      --home-coral:#df7968;
+      --home-coral-soft:#fff0ec;
+      --home-sand:#efe7dc;
+    }
+    body{
+      background:var(--home-bg) !important;
+      color:var(--home-ink) !important;
+    }
+    .home-header{
+      background:var(--home-paper);
+      border-bottom:1px solid var(--home-line);
+    }
+    .home-header-inner{
+      max-width:72rem;margin:0 auto;padding:12px 14px 10px;
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+    }
+    .home-brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .home-brand-mark{
+      width:40px;height:40px;border-radius:14px;background:var(--home-green-soft);
+      display:flex;align-items:center;justify-content:center;font-size:20px;flex:none;
+    }
+    .home-brand h1{font-size:15px;font-weight:900;line-height:1.2;color:var(--home-ink)}
+    .home-brand p{font-size:10px;color:var(--home-muted);font-weight:700;margin-top:2px;white-space:nowrap}
+    .home-header-actions{display:flex;align-items:center;gap:6px}
+    .home-icon-btn{
+      min-height:38px;padding:0 10px;border-radius:12px;border:1px solid var(--home-line);
+      background:#fff;color:#625a52;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:5px;
+    }
+    .home-icon-btn-muted{width:38px;padding:0;justify-content:center;color:#8e857b}
+    .home-summary-wrap{max-width:72rem;margin:0 auto;padding:0 14px 12px}
+    .home-summary-card{
+      background:linear-gradient(135deg,#fbf7f1 0%,#f1f5ed 100%);
+      border:1px solid #e6ded3;border-radius:18px;padding:12px 14px;
+    }
+    .home-summary-main{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .home-summary-label{font-size:10px;font-weight:900;color:var(--home-green);letter-spacing:.04em}
+    .home-summary-price{margin-top:2px;display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+    .home-summary-price strong{font-size:22px;line-height:1;font-weight:900;color:var(--home-ink)}
+    .home-summary-price span{font-size:11px;color:var(--home-muted);font-weight:700}
+    .home-budget-badge{
+      display:inline-flex;align-items:center;min-height:28px;padding:0 9px;border-radius:999px;
+      background:#fff;color:var(--home-green-dark);border:1px solid #dce4d8;font-size:10px;font-weight:900;
+    }
+    .home-summary-progress{height:5px;background:#e5dfd6;border-radius:999px;overflow:hidden;margin-top:10px}
+    .home-summary-progress #budget-progress-bar{
+      height:100% !important;background:var(--home-green) !important;border-radius:999px !important;
+      transition:width .4s ease;
+    }
+    .home-condition-details{margin-top:9px}
+    .home-condition-details summary{
+      cursor:pointer;list-style:none;font-size:11px;font-weight:800;color:#746b62;
+      display:inline-flex;align-items:center;gap:4px;
+    }
+    .home-condition-details summary::-webkit-details-marker{display:none}
+    .home-condition-details summary::after{content:'⌄';font-size:12px}
+    .home-condition-details[open] summary::after{content:'⌃'}
+    .home-condition-panel{
+      margin-top:10px;padding-top:10px;border-top:1px solid #e8e0d6;
+      display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;
+    }
+    .home-condition-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .home-condition-label{font-size:10px;font-weight:900;color:#81786f}
+    .home-stepper{display:inline-flex;align-items:center;border:1px solid #ddd4c9;border-radius:12px;background:#fff;overflow:hidden}
+    .home-stepper button{width:32px;height:32px;font-weight:900;color:var(--home-green-dark)}
+    .home-stepper span{min-width:52px;text-align:center;font-size:11px;font-weight:900}
+    .home-budget-presets{display:flex;gap:5px}
+    .home-budget-presets button{
+      height:32px;padding:0 9px;border-radius:10px;background:#fff;border:1px solid #ddd4c9;
+      font-size:10px;font-weight:800;color:#6f665e;
+    }
+    .home-budget-input{
+      height:32px;display:flex;align-items:center;gap:2px;background:#fff;border:1px solid #ddd4c9;border-radius:10px;padding:0 8px;
+      color:#8b8178;font-size:11px;font-weight:800;
+    }
+    .home-budget-input input{width:62px;border:0;background:transparent;padding:0;font-size:11px;font-weight:900;outline:none}
+    #main-tab-nav{
+      background:rgba(255,253,249,.96) !important;border-color:var(--home-line) !important;
+      box-shadow:none !important;padding:6px 0 !important;
+    }
+    #main-tab-nav .tab-btn{
+      background:transparent !important;color:#766e65 !important;box-shadow:none !important;
+      border-radius:12px !important;min-height:40px !important;
+    }
+    #main-tab-nav .tab-btn.active{
+      background:var(--home-green-soft) !important;color:var(--home-green-dark) !important;
+    }
+    main{padding-top:10px !important}
+    .weekly-focus-head{
+      background:var(--home-paper);border:1px solid var(--home-line);border-radius:20px;
+      padding:16px;display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px;
+    }
+    .weekly-kicker{font-size:10px;color:var(--home-coral);font-weight:900;letter-spacing:.06em}
+    .weekly-focus-head h2{font-size:20px;font-weight:900;color:var(--home-ink);line-height:1.25;margin-top:2px}
+    .weekly-focus-head p{font-size:11px;color:var(--home-muted);font-weight:600;margin-top:3px}
+    .weekly-primary-btn{
+      min-height:44px;padding:0 15px;border-radius:14px;background:var(--home-coral);color:#fff;
+      display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:900;
+      box-shadow:0 5px 14px rgba(223,121,104,.18);flex:none;
+    }
+    .weekly-subtools{
+      display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 10px;
+    }
+    .weekly-view-switch{display:inline-flex;background:var(--home-sand);padding:3px;border-radius:12px}
+    .weekly-view-switch button{
+      min-height:32px;padding:0 10px;border-radius:9px;font-size:10px;font-weight:800;color:#746b62;
+    }
+    .weekly-print-btn{
+      min-height:34px;padding:0 10px;border-radius:10px;background:#fff;border:1px solid var(--home-line);
+      color:#766e65;font-size:10px;font-weight:800;display:inline-flex;align-items:center;gap:4px;
+    }
+    @media(max-width:639px){
+      .home-brand p{display:none}
+      .home-header-inner{padding:10px 12px 8px}
+      .home-summary-wrap{padding:0 12px 10px}
+      .home-brand-mark{width:36px;height:36px}
+      .home-summary-price strong{font-size:20px}
+      .weekly-focus-head{padding:14px;align-items:flex-start}
+      .weekly-focus-head h2{font-size:18px}
+      .weekly-focus-head p{display:none}
+      .weekly-primary-btn{min-height:40px;padding:0 12px;font-size:11px}
+      .home-condition-panel{display:grid;grid-template-columns:1fr;gap:10px}
+      #main-tab-nav .tab-btn{font-size:11px !important}
+    }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col antialiased selection:bg-sky-200 selection:text-sky-900">
@@ -263,108 +397,84 @@
   <!-- ==================== 冷蔵庫貼り用 A4横1枚 印刷専用コンテナ（ブラウザ印刷時のみ表示） ==================== -->
   <div id="print-weekly-table-container"></div>
 
-  <!-- ==================== ヘッダー（超コンパクト・スクロール不要設計） ==================== -->
-  <header class="bg-white/95 border-b border-sky-100 shadow-2xs">
-    <div class="max-w-6xl mx-auto px-3 sm:px-6 py-1.5 sm:py-2 flex items-center justify-between gap-2 flex-wrap">
-      
-      <!-- ロゴ＆タイトル -->
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-400 via-teal-400 to-lime-300 flex items-center justify-center text-white shadow-2xs text-lg shrink-0">
-          🍳
+  <!-- ==================== シンプルヘッダー ==================== -->
+  <header class="home-header">
+    <div class="home-header-inner">
+      <div class="home-brand">
+        <div class="home-brand-mark">🍳</div>
+        <div>
+          <h1>食費節約レシピ</h1>
+          <p>1週間の献立と買い物を、無理なく節約</p>
         </div>
-        <h1 class="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-          <span>食費節約レシピ</span>
-          <span class="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-teal-500 text-white">無料</span>
-        </h1>
       </div>
 
-      <!-- アクションボタン群（好み設定・人数ステッパー・献立生成・共有・ガイド） -->
-      <div class="flex items-center gap-1.5 ml-auto flex-wrap">
-        <!-- お子様の好み設定ボタン -->
-        <button id="btn-open-preferences" onclick="openPreferencesModal(false)" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold text-lime-900 bg-lime-50 hover:bg-lime-100 border border-lime-200 shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap">
-          <span>👶</span>
-          <span>好み設定</span>
-        </button>
-
-        <!-- 家族人数ステッパー（− 3人分 ＋） -->
-        <div class="inline-flex items-center bg-white rounded-xl border border-sky-200 shadow-2xs overflow-hidden select-none">
-          <button type="button" onclick="changeServingsByStep(-1)" class="w-6 h-6 flex items-center justify-center font-black text-sky-800 hover:bg-sky-50 transition cursor-pointer text-xs" title="1人減らす">－</button>
-          <span id="servings-display" class="px-1.5 font-black text-sky-950 text-[11px] whitespace-nowrap">3人分</span>
-          <button type="button" onclick="changeServingsByStep(1)" class="w-6 h-6 flex items-center justify-center font-black text-sky-800 hover:bg-sky-50 transition cursor-pointer text-xs" title="1人増やす">＋</button>
-          <select id="servings-select" class="hidden">
-            <option value="1">1人分</option>
-            <option value="2">2人分</option>
-            <option value="3" selected>3人分</option>
-            <option value="4">4人分</option>
-            <option value="5">5人分</option>
-            <option value="6">6人分</option>
-            <option value="7">7人分</option>
-          </select>
-        </div>
-
-        <!-- 1週間分自動生成ボタン -->
-        <button id="btn-regenerate-weekly" onclick="generateRandomWeeklyPlan(true)" class="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-[11px] font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 transition-all shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap">
-          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-          <span>献立生成</span>
-        </button>
-
-        <!-- 家族共有ボタン（一目でわかる専用ボタン） -->
-        <button id="btn-open-sync" onclick="openSyncModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/90 shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap" title="家族で献立と買い物リストを共有">
-          <span class="text-sm leading-none">👥</span>
-          <span>家族共有</span>
+      <div class="home-header-actions">
+        <button id="btn-open-sync" onclick="openSyncModal()" class="home-icon-btn" title="家族共有">
+          <span>👥</span>
+          <span class="hidden sm:inline">共有</span>
           <span id="sync-status-dot" class="inline-block w-2 h-2 rounded-full bg-slate-300"></span>
         </button>
-
-        <!-- ガイドボタン -->
-        <button id="btn-open-guide" onclick="openGuideModal()" class="p-1 text-slate-500 hover:text-teal-700 hover:bg-slate-100 rounded-lg transition" title="使い方">
-          <span class="text-xs">❓</span>
+        <button id="btn-open-preferences" onclick="openPreferencesModal(false)" class="home-icon-btn" title="家族・好み設定">
+          <span>⚙️</span>
+          <span class="hidden sm:inline">設定</span>
+        </button>
+        <button id="btn-open-guide" onclick="openGuideModal()" class="home-icon-btn home-icon-btn-muted" title="使い方">
+          <span>？</span>
         </button>
         <button id="btn-install-pwa" class="hidden"></button>
         <button id="btn-open-mobile-modal" class="hidden"></button>
       </div>
     </div>
 
-    <!-- ================= 予算コントロール＆ステータスバー（スリム1行） ================= -->
-    <div class="bg-gradient-to-r from-sky-50/70 via-teal-50/50 to-lime-50/70 border-t border-sky-100/80 py-1 px-3 sm:px-6 text-[11px]">
-      <div class="max-w-6xl mx-auto flex items-center justify-between gap-2 flex-wrap">
-        
-        <!-- 目標予算設定 -->
-        <div class="flex items-center gap-1.5 flex-wrap">
-          <span class="font-bold text-slate-800 flex items-center gap-0.5 shrink-0">
-            <span>🎯 予算:</span>
-          </span>
-
-          <!-- プリセットボタン -->
-          <div class="inline-flex rounded-lg shadow-2xs bg-white border border-sky-100 p-0.5 shrink-0">
-            <button data-budget-preset="3500" class="px-1.5 py-0.2 rounded text-[10px] font-bold text-slate-600 hover:bg-sky-50 transition">¥3.5k</button>
-            <button data-budget-preset="4500" class="px-1.5 py-0.2 rounded text-[10px] font-black text-sky-800 bg-sky-100 border border-sky-300 shadow-2xs transition">¥4.5k</button>
-            <button data-budget-preset="5500" class="px-1.5 py-0.2 rounded text-[10px] font-bold text-slate-600 hover:bg-sky-50 transition">¥5.5k</button>
+    <div class="home-summary-wrap">
+      <div class="home-summary-card">
+        <div class="home-summary-main">
+          <div>
+            <span class="home-summary-label">今週の食費目安</span>
+            <div class="home-summary-price">
+              <strong id="badge-total-cost">¥4,450</strong>
+              <span>/ 目標 <span id="badge-target-cost">¥4,500</span></span>
+            </div>
           </div>
-
-          <!-- 手入力 -->
-          <div class="flex items-center bg-white border border-sky-200 rounded-lg px-1.5 py-0.2 shadow-2xs shrink-0">
-            <span class="text-sky-500 font-bold mr-0.5">¥</span>
-            <input type="number" id="target-budget-input" step="100" min="2000" max="30000" value="4500"
-                   class="w-14 border-none bg-transparent p-0 text-slate-900 font-bold focus:ring-0 text-[11px]">
-          </div>
-          <div id="badge-preferences-summary" class="hidden"></div>
+          <span id="badge-budget-diff" class="home-budget-badge"></span>
         </div>
 
-        <!-- 予算メーター＆差額サマリー -->
-        <div class="flex items-center gap-2 sm:gap-3 ml-auto shrink-0 flex-wrap">
-          <span id="badge-budget-diff" class="inline-flex items-center gap-0.5 px-2 py-0.2 rounded-full text-[10px] font-black bg-sky-100 text-sky-800 border border-sky-200 shadow-2xs"></span>
-
-          <div class="w-16 sm:w-20 bg-slate-200/80 h-1.5 rounded-full overflow-hidden shrink-0 shadow-inner">
-            <div id="budget-progress-bar" class="h-full bg-gradient-to-r from-teal-400 to-lime-400 rounded-full transition-all duration-500" style="width: 90%;"></div>
-          </div>
-
-          <div class="flex items-center gap-1 font-bold text-slate-800 bg-white/90 px-2 py-0.2 rounded-lg border border-sky-200/80 shadow-2xs text-[11px]">
-            <span>推定: <strong id="badge-total-cost" class="text-teal-700 font-black">¥4,450</strong></span>
-            <span class="text-slate-300">/</span>
-            <span class="text-slate-500">目標 <span id="badge-target-cost" class="font-bold">¥4,500</span></span>
-          </div>
+        <div class="home-summary-progress">
+          <div id="budget-progress-bar"></div>
         </div>
 
+        <details class="home-condition-details">
+          <summary>条件を変える</summary>
+          <div class="home-condition-panel">
+            <div class="home-condition-row">
+              <span class="home-condition-label">人数</span>
+              <div class="home-stepper">
+                <button type="button" onclick="changeServingsByStep(-1)">−</button>
+                <span id="servings-display">3人分</span>
+                <button type="button" onclick="changeServingsByStep(1)">＋</button>
+                <select id="servings-select" class="hidden">
+                  <option value="1">1人分</option><option value="2">2人分</option><option value="3" selected>3人分</option>
+                  <option value="4">4人分</option><option value="5">5人分</option><option value="6">6人分</option><option value="7">7人分</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="home-condition-row">
+              <span class="home-condition-label">週間予算</span>
+              <div class="home-budget-presets">
+                <button data-budget-preset="3500">¥3,500</button>
+                <button data-budget-preset="4500">¥4,500</button>
+                <button data-budget-preset="5500">¥5,500</button>
+              </div>
+              <div class="home-budget-input">
+                <span>¥</span>
+                <input type="number" id="target-budget-input" step="100" min="2000" max="30000" value="4500">
+              </div>
+            </div>
+
+            <div id="badge-preferences-summary" class="hidden"></div>
+          </div>
+        </details>
       </div>
     </div>
   </header>
@@ -394,27 +504,26 @@
 
     <!-- ================= 1. 1週間の献立タブ ================= -->
     <section id="tab-weekly" class="tab-content">
-      <!-- 上段：タイトル ＆ 表示モード切替（横スワイプカード vs 7日分全表示） ＆ 印刷 -->
-      <div class="mb-1 sm:mb-1.5 flex items-center justify-between gap-1.5 flex-wrap">
-        <div class="flex items-center gap-1.5 flex-wrap">
-          <h2 class="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1">
-            <span>📅 今週の献立</span>
-          </h2>
-          <!-- 直感的でわかりやすい表示切替ボタン -->
-          <div class="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200/90 shadow-2xs">
-            <button id="btn-weekly-view-swipe" onclick="setWeeklyViewMode('swipe')" class="px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-teal-800 shadow-2xs flex items-center gap-1 cursor-pointer">
-              <span>📱 1日カード(スワイプ)</span>
-            </button>
-            <button id="btn-weekly-view-all" onclick="setWeeklyViewMode('all')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer">
-              <span>📋 7日分全表示</span>
-            </button>
-          </div>
+      <div class="weekly-focus-head">
+        <div>
+          <span class="weekly-kicker">今週のごはん</span>
+          <h2>1週間の献立</h2>
+          <p>今日からそのまま使える献立です。</p>
         </div>
 
-        <!-- 印刷ボタン -->
-        <button id="btn-print-weekly" onclick="triggerPrintWeeklyPlan()" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold text-slate-700 bg-white hover:bg-slate-50 transition-all border border-slate-200 shadow-2xs active:scale-95 cursor-pointer shrink-0" title="冷蔵庫に貼れるA4用紙1枚で印刷・PDF保存">
-          <span class="text-xs">🖨️</span>
-          <span>印刷 (PDF)</span>
+        <button id="btn-regenerate-weekly" onclick="generateRandomWeeklyPlan(true)" class="weekly-primary-btn">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>献立を作り直す</span>
+        </button>
+      </div>
+
+      <div class="weekly-subtools">
+        <div class="weekly-view-switch">
+          <button id="btn-weekly-view-swipe" onclick="setWeeklyViewMode('swipe')">1日ずつ</button>
+          <button id="btn-weekly-view-all" onclick="setWeeklyViewMode('all')">7日まとめて</button>
+        </div>
+        <button id="btn-print-weekly" onclick="triggerPrintWeeklyPlan()" class="weekly-print-btn" title="冷蔵庫に貼れるA4用紙1枚で印刷・PDF保存">
+          <span>🖨️</span><span>印刷</span>
         </button>
       </div>
 
