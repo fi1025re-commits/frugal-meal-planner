@@ -1,6 +1,6 @@
 // Service Worker for 食費節約献立＆買い物リスト作成 (PWA)
 // 更新時に旧画面が残らないことを最優先したキャッシュ戦略
-const CACHE_VERSION = '20261001_0730';
+const CACHE_VERSION = '20261001_0800';
 const CACHE_PREFIX = 'setsuyaku-recipe-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
