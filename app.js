@@ -34,7 +34,9 @@ const state = {
   blacklistedRecipeIds: [], // ['main_02', ...] 献立除外レシピID
   customRecipes: [], // ユーザーが追加登録した外部・オリジナルレシピ
   hideSeasonings: false, // 基本調味料（常備品）を隠すフラグ
-  customShoppingItems: [] // 自由に追加した買い足しメモ [{ id, name, isChecked }]
+  customShoppingItems: [], // 自由に追加した買い足しメモ [{ id, name, isChecked }]
+  weeklyViewMode: 'swipe', // 'swipe' (1日カード横スワイプ) | 'all' (7日分全表示)
+  activeSwipeDayIndex: 0 // スワイプ表示時の現在アクティブな曜日インデックス (0〜6)
 };
 
 // LocalStorage キー
@@ -59,6 +61,7 @@ const STORAGE_KEY_GUIDE_SEEN = 'frugal_guide_seen_v1';
 const STORAGE_KEY_FEEDBACK = 'frugal_user_feedback_v1';
 const STORAGE_KEY_HIDE_SEASONINGS = 'frugal_hide_seasonings_v1';
 const STORAGE_KEY_CUSTOM_SHOPPING = 'frugal_custom_shopping_items_v1';
+const STORAGE_KEY_WEEKLY_VIEW_MODE = 'frugal_weekly_view_mode_v1';
 
 // 安全なアイコン描画ヘルパー
 function safeCreateIcons() {
@@ -71,10 +74,52 @@ function safeCreateIcons() {
   }
 }
 
-// レシピ名から【外部サイト】や【登録レシピ】の接頭辞を取り除いて料理名を一目で読めるようにする
+// 主菜のタンパク質・主要食材の視覚的分類（一目で肉・魚・豆腐がわかるバッジ）
+const PROTEIN_CONFIG = {
+  fish: { icon: '🐟', label: 'お魚料理', badgeBg: 'bg-sky-100 text-sky-900 border-sky-300', dot: 'bg-sky-500' },
+  chicken: { icon: '🍗', label: '鶏肉料理', badgeBg: 'bg-amber-100 text-amber-900 border-amber-300', dot: 'bg-amber-500' },
+  pork: { icon: '🥩', label: '豚肉料理', badgeBg: 'bg-rose-100 text-rose-900 border-rose-300', dot: 'bg-rose-500' },
+  mince: { icon: '🥘', label: 'ひき肉料理', badgeBg: 'bg-orange-100 text-orange-900 border-orange-300', dot: 'bg-orange-500' },
+  soy: { icon: '🍳', label: '豆腐・大豆料理', badgeBg: 'bg-emerald-100 text-emerald-900 border-emerald-300', dot: 'bg-emerald-500' },
+  other: { icon: '🥗', label: '主菜料理', badgeBg: 'bg-slate-100 text-slate-800 border-slate-300', dot: 'bg-slate-500' }
+};
+
+function getProteinInfo(recipe) {
+  if (!recipe) return null;
+  let pType = recipe.proteinType;
+  if (!pType) {
+    const text = (recipe.title || '') + ' ' + (recipe.description || '');
+    if (/魚|鮭|サバ|ぶり|ツナ|タラ|アジ/i.test(text)) pType = 'fish';
+    else if (/鶏|チキン|手羽/i.test(text)) pType = 'chicken';
+    else if (/豚|ポーク/i.test(text)) pType = 'pork';
+    else if (/ひき肉|挽肉|ハンバーグ|つくね|餃子|麻婆/i.test(text)) pType = 'mince';
+    else if (/豆腐|厚揚げ|納豆|大豆/i.test(text)) pType = 'soy';
+    else pType = 'other';
+  }
+  return PROTEIN_CONFIG[pType] || PROTEIN_CONFIG.other;
+}
+
+// 料理名の文字ダイエット（豆腐・厚揚げ・鶏むね肉等の主要食材名は厳格に100%保持し、煽り・広告フレーズのみを引き算）
 function getCleanTitle(recipe) {
   if (!recipe || !recipe.title) return '';
-  return recipe.title.replace(/^【外部サイト】/, '').replace(/^【登録レシピ】/, '').trim();
+  let title = recipe.title
+    .replace(/^【[^】]+】/g, '') // 【外部サイト】【登録レシピ】等を除去
+    .replace(/（[^）]+式）/g, '') // （リュウジ式）等を除去
+    .replace(/〜[^〜]+〜/g, '') // 〜〜を除去
+    .replace(/フライパン[で1つ][^！!]*[！!]/g, '') // フライパンで一発！等を除去
+    .replace(/でふわふわ[！!]節約ビッグ/g, '') // 「豆腐でふわふわ！節約ビッグ煮込みハンバーグ」→「豆腐煮込みハンバーグ」
+    .replace(/でしっとり柔らか[！!]特製/g, 'の') // 「鶏むね肉でしっとり柔らか！特製チキン南蛮風」→「鶏むね肉のチキン南蛮風」
+    .replace(/ギュッと丸めて[！!]節約カリカリ/g, '') // 「豚こまギュッと丸めて！節約カリカリ酢豚風」→「豚こま酢豚風」
+    .replace(/サクサク[！!]/g, '') // サクサク！を除去
+    .replace(/BIGパリパリ/g, 'パリパリ') // BIGパリパリ→パリパリ
+    .replace(/のジューシー甘辛/g, 'の甘辛')
+    .replace(/のこってり甘辛/g, 'の甘辛')
+    .replace(/たっぷり[！!]フライパン/g, '')
+    .replace(/(至高の|極上の|基本の|絶品|特製)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return title || recipe.title;
 }
 
 // 外部レシピ・動画の可愛いバッジHTML（Plan A: 完全自給レシピ化のため非表示）
@@ -345,6 +390,11 @@ function loadSavedState() {
     } catch (e) {
       state.customShoppingItems = [];
     }
+  }
+
+  const savedWeeklyViewMode = localStorage.getItem(STORAGE_KEY_WEEKLY_VIEW_MODE);
+  if (savedWeeklyViewMode === 'swipe' || savedWeeklyViewMode === 'all') {
+    state.weeklyViewMode = savedWeeklyViewMode;
   }
 
   // 献立データの完全性検証（7日分揃っているか、全レシピIDが存在するかチェック）
@@ -2233,6 +2283,70 @@ const DAY_THEMES = {
   sun: { name: '🌈 日曜日', bg: 'bg-indigo-50/90 text-indigo-950 border-indigo-200' }
 };
 
+function setWeeklyViewMode(mode) {
+  state.weeklyViewMode = mode;
+  try {
+    localStorage.setItem(STORAGE_KEY_WEEKLY_VIEW_MODE, mode);
+  } catch (e) {}
+
+  const btnSwipe = document.getElementById('btn-weekly-view-swipe');
+  const btnAll = document.getElementById('btn-weekly-view-all');
+  if (btnSwipe && btnAll) {
+    if (mode === 'swipe') {
+      btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-teal-800 shadow-2xs flex items-center gap-1 cursor-pointer';
+      btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+    } else {
+      btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-teal-800 shadow-2xs flex items-center gap-1 cursor-pointer';
+      btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+    }
+  }
+  renderWeeklyPlan();
+}
+window.setWeeklyViewMode = setWeeklyViewMode;
+
+function jumpToSwipeDay(index) {
+  state.activeSwipeDayIndex = Math.max(0, Math.min(DAYS_OF_WEEK.length - 1, index));
+  const slider = document.getElementById('weekly-swipe-slider');
+  const targetCard = document.getElementById(`swipe-card-${DAYS_OF_WEEK[state.activeSwipeDayIndex].id}`);
+  if (slider && targetCard) {
+    targetCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+  updateSwipeNavIndicators();
+}
+window.jumpToSwipeDay = jumpToSwipeDay;
+
+function swipeWeeklyDay(direction) {
+  const nextIndex = state.activeSwipeDayIndex + direction;
+  if (nextIndex >= 0 && nextIndex < DAYS_OF_WEEK.length) {
+    jumpToSwipeDay(nextIndex);
+  }
+}
+window.swipeWeeklyDay = swipeWeeklyDay;
+
+function updateSwipeNavIndicators() {
+  DAYS_OF_WEEK.forEach((d, idx) => {
+    const tabBtn = document.getElementById(`swipe-day-tab-${d.id}`);
+    if (tabBtn) {
+      if (idx === state.activeSwipeDayIndex) {
+        tabBtn.className = 'px-2.5 py-1 rounded-xl text-xs font-black transition-all shadow-2xs shrink-0 cursor-pointer bg-slate-900 text-white ring-2 ring-slate-900 ring-offset-1 scale-105';
+      } else {
+        tabBtn.className = 'px-2 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200';
+      }
+    }
+  });
+
+  const btnPrev = document.getElementById('btn-swipe-prev');
+  const btnNext = document.getElementById('btn-swipe-next');
+  if (btnPrev) {
+    btnPrev.disabled = state.activeSwipeDayIndex === 0;
+    btnPrev.style.opacity = state.activeSwipeDayIndex === 0 ? '0.3' : '1';
+  }
+  if (btnNext) {
+    btnNext.disabled = state.activeSwipeDayIndex === DAYS_OF_WEEK.length - 1;
+    btnNext.style.opacity = state.activeSwipeDayIndex === DAYS_OF_WEEK.length - 1 ? '0.3' : '1';
+  }
+}
+
 function renderWeeklyPlan() {
   const container = document.getElementById('weekly-plan-container');
   if (!container) return;
@@ -2243,10 +2357,25 @@ function renderWeeklyPlan() {
     return;
   }
 
+  // 表示モード切替ボタンの見た目を同期
+  const btnSwipe = document.getElementById('btn-weekly-view-swipe');
+  const btnAll = document.getElementById('btn-weekly-view-all');
+  if (btnSwipe && btnAll) {
+    if (state.weeklyViewMode === 'swipe') {
+      btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-teal-800 shadow-2xs flex items-center gap-1 cursor-pointer';
+      btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+    } else {
+      btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-teal-800 shadow-2xs flex items-center gap-1 cursor-pointer';
+      btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+    }
+  }
+
   try {
     container.innerHTML = '';
+    const isSwipeMode = state.weeklyViewMode === 'swipe';
 
-    DAYS_OF_WEEK.forEach((day) => {
+    // カードHTMLを生成
+    const cardHtmlList = DAYS_OF_WEEK.map((day, idx) => {
       let dayData = state.weeklyPlan[day.id];
       if (!dayData) {
         dayData = { main: 'main_01', side: 'side_01', soup: 'soup_01' };
@@ -2257,7 +2386,6 @@ function renderWeeklyPlan() {
       let sideRecipe = getRecipeById(dayData.side);
       let soupRecipe = getRecipeById(dayData.soup);
 
-      // 万一レシピが見つからない場合の安全フォールバック（画面が空になるのを防止）
       if (!mainRecipe && Array.isArray(RECIPES_DATA) && RECIPES_DATA.length > 0) {
         mainRecipe = RECIPES_DATA.find(r => r && r.category === 'main') || RECIPES_DATA[0];
         dayData.main = mainRecipe.id;
@@ -2280,51 +2408,149 @@ function renderWeeklyPlan() {
                       (sideRecipe ? sideRecipe.approxCostPerPerson : 0) +
                       (soupRecipe ? soupRecipe.approxCostPerPerson : 0);
 
-      const dayCard = document.createElement('div');
-      dayCard.className = `rounded-2xl border transition-all overflow-hidden bg-white shadow-2xs flex flex-col ${
-        isCooked ? 'border-emerald-300 ring-2 ring-emerald-200' : 'border-sky-100/90 hover:border-sky-200'
-      }`;
+      // 主菜食材バナー（肉・魚・豆腐が一目でわかる！）
+      const proteinInfo = getProteinInfo(mainRecipe);
+      const proteinBannerHtml = proteinInfo ? `
+        <div class="mx-3 sm:mx-4 mt-2.5 px-3 py-1.5 rounded-xl border flex items-center justify-between gap-2 shadow-2xs ${proteinInfo.badgeBg}">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="text-base leading-none">${proteinInfo.icon}</span>
+            <span class="text-xs font-black shrink-0">主菜食材: ${proteinInfo.label}</span>
+          </div>
+          <span class="text-[11px] font-bold truncate opacity-90 text-right">${getCleanTitle(mainRecipe)}</span>
+        </div>
+      ` : '';
 
-      dayCard.innerHTML = `
-        <!-- 曜日ヘッダー -->
-        <div class="px-3.5 py-2.5 sm:px-4 sm:py-3 border-b border-sky-100 flex items-center justify-between flex-wrap gap-2 ${dayBg}">
-          <div class="flex items-center gap-2 flex-wrap min-w-0">
-            <label class="inline-flex items-center gap-1 cursor-pointer bg-white/95 px-2 py-0.5 rounded-lg border ${
-              isChecked ? 'border-teal-300 text-teal-900 shadow-2xs' : 'border-slate-300 text-slate-400 opacity-80'
-            } transition-all hover:bg-white select-none active:scale-95 shrink-0" title="チェックを外すとこの日の食材が買い物リストから除外されます">
-              <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 text-teal-600 rounded border-slate-300 focus:ring-teal-400 cursor-pointer" onchange="toggleShoppingDay('${day.id}')">
-              <span class="text-[10px] sm:text-[11px] font-black">${isChecked ? 'リスト反映' : '除外中'}</span>
-            </label>
-            <span class="text-sm sm:text-base font-black shrink-0">${theme.name}</span>
-            <span class="text-[11px] sm:text-xs px-2 py-0.5 rounded-full font-bold bg-white/90 border border-current shadow-2xs whitespace-nowrap">
-              ${state.servings}人分 約¥${dayCost * state.servings}
-            </span>
-            ${isCooked ? `<span class="text-[10px] sm:text-[11px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full shadow-2xs">✅ 調理済</span>` : ''}
+      return `
+        <div id="swipe-card-${day.id}" class="rounded-2xl border transition-all overflow-hidden bg-white shadow-2xs flex flex-col ${
+          isCooked ? 'border-emerald-300 ring-2 ring-emerald-200' : 'border-sky-100/90 hover:border-sky-200'
+        } ${isSwipeMode ? 'shrink-0 w-full max-w-md mx-auto snap-center' : ''}">
+          <!-- 曜日ヘッダー -->
+          <div class="px-3.5 py-2.5 sm:px-4 sm:py-3 border-b border-sky-100 flex items-center justify-between flex-wrap gap-2 ${dayBg}">
+            <div class="flex items-center gap-2 flex-wrap min-w-0">
+              <label class="inline-flex items-center gap-1 cursor-pointer bg-white/95 px-2 py-0.5 rounded-lg border ${
+                isChecked ? 'border-teal-300 text-teal-900 shadow-2xs' : 'border-slate-300 text-slate-400 opacity-80'
+              } transition-all hover:bg-white select-none active:scale-95 shrink-0" title="チェックを外すとこの日の食材が買い物リストから除外されます">
+                <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 text-teal-600 rounded border-slate-300 focus:ring-teal-400 cursor-pointer" onchange="toggleShoppingDay('${day.id}')">
+                <span class="text-[10px] sm:text-[11px] font-black">${isChecked ? 'リスト反映' : '除外中'}</span>
+              </label>
+              <span class="text-sm sm:text-base font-black shrink-0">${theme.name}</span>
+              <span class="text-[11px] sm:text-xs px-2 py-0.5 rounded-full font-bold bg-white/90 border border-current shadow-2xs whitespace-nowrap">
+                ${state.servings}人分 約¥${dayCost * state.servings}
+              </span>
+              ${isCooked ? `<span class="text-[10px] sm:text-[11px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full shadow-2xs">✅ 調理済</span>` : ''}
+            </div>
+
+            <div class="flex items-center gap-1.5 ml-auto shrink-0">
+              <button onclick="toggleCookedDay('${day.id}')" class="text-xs flex items-center gap-1 font-black px-2.5 py-1 rounded-xl transition-all shadow-2xs active:scale-95 ${
+                isCooked ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-white/90 text-teal-900 hover:bg-teal-50 border border-teal-200'
+              }" title="作った記録">
+                <i data-lucide="${isCooked ? 'check-circle' : 'utensils'}" class="w-3.5 h-3.5"></i>
+                <span>${isCooked ? '調理済' : '🍳 作った！'}</span>
+              </button>
+              <button onclick="shuffleDayMenu('${day.id}')" class="text-xs flex items-center gap-1 font-bold p-1.5 rounded-xl bg-white/90 text-slate-600 shadow-2xs hover:bg-white" title="この日のメニューをランダム変更">
+                <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
           </div>
 
-          <div class="flex items-center gap-1.5 ml-auto shrink-0">
-            <button onclick="toggleCookedDay('${day.id}')" class="text-xs flex items-center gap-1 font-black px-2.5 py-1 rounded-xl transition-all shadow-2xs active:scale-95 ${
-              isCooked ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-white/90 text-teal-900 hover:bg-teal-50 border border-teal-200'
-            }" title="作った記録">
-              <i data-lucide="${isCooked ? 'check-circle' : 'utensils'}" class="w-3.5 h-3.5"></i>
-              <span>${isCooked ? '調理済' : '🍳 作った！'}</span>
-            </button>
-            <button onclick="shuffleDayMenu('${day.id}')" class="text-xs flex items-center gap-1 font-bold p-1.5 rounded-xl bg-white/90 text-slate-600 shadow-2xs hover:bg-white" title="この日のメニューをランダム変更">
-              <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
-            </button>
+          <!-- 主菜食材バナー（肉・魚・豆腐が一目でわかる！） -->
+          ${proteinBannerHtml}
+
+          <!-- 3品一覧エリア（枠内に美しく収まるレイアウト） -->
+          <div class="p-3 sm:p-4 flex-1 flex flex-col gap-2 ${isCooked ? 'bg-emerald-50/20' : ''}">
+            ${renderDishRow(day.id, 'main', mainRecipe, '主菜')}
+            ${renderDishRow(day.id, 'side', sideRecipe, '副菜')}
+            ${renderDishRow(day.id, 'soup', soupRecipe, '汁物')}
           </div>
         </div>
+      `;
+    });
 
-        <!-- 3品一覧エリア（枠内に100%美しく収まるレイアウト） -->
-        <div class="p-3 sm:p-4 flex-1 flex flex-col gap-2 ${isCooked ? 'bg-emerald-50/20' : ''}">
-          ${renderDishRow(day.id, 'main', mainRecipe, '主菜')}
-          ${renderDishRow(day.id, 'side', sideRecipe, '副菜')}
-          ${renderDishRow(day.id, 'soup', soupRecipe, '汁物')}
+    if (isSwipeMode) {
+      // 1日カード（横スワイプ）レイアウト
+      const tabsHtml = DAYS_OF_WEEK.map((d, idx) => {
+        const pInfo = getProteinInfo(getRecipeById(state.weeklyPlan[d.id]?.main));
+        const icon = pInfo ? pInfo.icon : '';
+        return `
+          <button type="button" onclick="jumpToSwipeDay(${idx})" id="swipe-day-tab-${d.id}"
+                  class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
+                    idx === state.activeSwipeDayIndex
+                      ? 'bg-slate-900 text-white font-black shadow-2xs scale-105 ring-2 ring-slate-900 ring-offset-1'
+                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                  }">
+            <span>${d.label}</span>
+            <span class="text-xs">${icon}</span>
+          </button>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="flex flex-col gap-2.5">
+          <!-- 上段：曜日選択ピルバー（主菜食材アイコン付き） -->
+          <div class="bg-white/95 p-2 rounded-2xl border border-sky-100 shadow-2xs flex items-center justify-between gap-2">
+            <span class="text-xs font-black text-slate-500 shrink-0 hidden sm:inline">📅 曜日:</span>
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar flex-1 justify-start sm:justify-center">
+              ${tabsHtml}
+            </div>
+          </div>
+
+          <!-- スライダー本体（左右送りボタン完備） -->
+          <div class="relative w-full max-w-xl mx-auto">
+            <button id="btn-swipe-prev" type="button" onclick="swipeWeeklyDay(-1)" class="absolute -left-3 sm:-left-4 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/95 shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-white active:scale-95 cursor-pointer transition-opacity" title="前の日">
+              <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            <button id="btn-swipe-next" type="button" onclick="swipeWeeklyDay(1)" class="absolute -right-3 sm:-right-4 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/95 shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-white active:scale-95 cursor-pointer transition-opacity" title="次の日">
+              <i data-lucide="chevron-right" class="w-5 h-5"></i>
+            </button>
+
+            <div id="weekly-swipe-slider" class="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar py-1 px-1">
+              ${cardHtmlList.join('')}
+            </div>
+          </div>
         </div>
       `;
 
-      container.appendChild(dayCard);
-    });
+      // スワイプ時のスクロール位置連動リスナー
+      const slider = document.getElementById('weekly-swipe-slider');
+      if (slider) {
+        let scrollTimeout;
+        slider.addEventListener('scroll', () => {
+          clearTimeout(scrollTimeout);
+          scrollTimeout = setTimeout(() => {
+            const sliderCenter = slider.scrollLeft + slider.offsetWidth / 2;
+            let closestIdx = 0;
+            let closestDist = Infinity;
+            DAYS_OF_WEEK.forEach((d, idx) => {
+              const card = document.getElementById(`swipe-card-${d.id}`);
+              if (card) {
+                const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+                const dist = Math.abs(cardCenter - sliderCenter);
+                if (dist < closestDist) {
+                  closestDist = dist;
+                  closestIdx = idx;
+                }
+              }
+            });
+            if (state.activeSwipeDayIndex !== closestIdx) {
+              state.activeSwipeDayIndex = closestIdx;
+              updateSwipeNavIndicators();
+            }
+          }, 100);
+        }, { passive: true });
+
+        // 初期カード位置へスクロール
+        setTimeout(() => {
+          jumpToSwipeDay(state.activeSwipeDayIndex);
+        }, 50);
+      }
+    } else {
+      // 7日分全表示モード（グリッドレイアウト）
+      container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          ${cardHtmlList.join('')}
+        </div>
+      `;
+    }
 
     if (container.children.length === 0) {
       container.innerHTML = `
@@ -3058,9 +3284,45 @@ function copyShoppingListToClipboard() {
   });
 }
 
+function setRecipeDayFilter(dayId) {
+  state.selectedDayFilter = dayId;
+  
+  // 特定の曜日が選ばれたときは自動で開いてレシピを即座に見られるようにする
+  if (dayId !== 'all') {
+    state.recipeExpandedDays = state.recipeExpandedDays || [];
+    if (!state.recipeExpandedDays.includes(dayId)) {
+      state.recipeExpandedDays.push(dayId);
+    }
+  }
+
+  // 曜日ピルボタンのスタイル更新
+  document.querySelectorAll('[data-recipe-day-btn]').forEach(btn => {
+    const bDay = btn.getAttribute('data-recipe-day-btn');
+    if (bDay === dayId) {
+      btn.className = 'px-2.5 py-1 rounded-xl text-xs font-black transition-all shadow-2xs shrink-0 cursor-pointer bg-emerald-600 text-white ring-2 ring-emerald-600 ring-offset-1 scale-105';
+    } else {
+      btn.className = 'px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100';
+    }
+  });
+
+  renderRecipeBook();
+}
+window.setRecipeDayFilter = setRecipeDayFilter;
+
 function renderRecipeBook() {
   const container = document.getElementById('recipe-book-container');
   if (!container) return;
+
+  // 曜日ボタンバーのアクティブ状態を同期
+  const curFilter = state.selectedDayFilter || 'all';
+  document.querySelectorAll('[data-recipe-day-btn]').forEach(btn => {
+    const bDay = btn.getAttribute('data-recipe-day-btn');
+    if (bDay === curFilter) {
+      btn.className = 'px-2.5 py-1 rounded-xl text-xs font-black transition-all shadow-2xs shrink-0 cursor-pointer bg-emerald-600 text-white ring-2 ring-emerald-600 ring-offset-1 scale-105';
+    } else {
+      btn.className = 'px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100';
+    }
+  });
 
   const categoryLabels = { main: '主菜', side: '副菜', soup: '汁物' };
   const categoryColors = {
@@ -3272,11 +3534,12 @@ function renderRecipeBook() {
         hoverHeader: 'hover:bg-slate-50/50'
       };
 
+      const proteinInfo = getProteinInfo(mainRecipe) || { icon: '🍽️', label: '主菜', badgeBg: 'bg-amber-100 text-amber-900 border-amber-300' };
       const mainImgSrc = mainRecipe ? (mainRecipe.imagePath || (typeof getMainDishImage === 'function' ? getMainDishImage(mainRecipe) : '')) : '';
 
       html += `
         <div class="rounded-2xl border ${theme.border} bg-white overflow-hidden shadow-2xs transition-all w-full min-w-0">
-          <!-- 曜日ボタン（各曜日固有のカラーバッジ＋主菜名） -->
+          <!-- 曜日ボタン（各曜日固有のカラーバッジ＋主菜食材バッジ＋主菜名） -->
           <div onclick="toggleRecipeDayExpand('${day.id}')" 
                class="p-3 sm:p-3.5 cursor-pointer select-none flex items-center justify-between gap-2.5 ${theme.hoverHeader} transition-colors ${
                  isExpanded ? theme.activeHeader : ''
@@ -3287,7 +3550,9 @@ function renderRecipeBook() {
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5 min-w-0">
-                  <span class="text-[10px] font-black px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 shrink-0">主菜</span>
+                  <span class="text-[10px] font-black px-1.5 py-0.2 rounded border shadow-2xs ${proteinInfo.badgeBg} shrink-0">
+                    ${proteinInfo.icon} ${proteinInfo.label}
+                  </span>
                   <span class="text-xs sm:text-sm font-bold text-slate-900 truncate">
                     ${cleanMainTitle}
                   </span>

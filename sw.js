@@ -1,5 +1,5 @@
 // Service Worker for 食費節約献立＆買い物リスト作成 (PWA)
-const CACHE_NAME = 'setsuyaku-recipe-v6';
+const CACHE_NAME = 'setsuyaku-recipe-v7';
 
 // オフライン動作用に初期キャッシュする静的アセット
 const PRECACHE_ASSETS = [
