@@ -2181,9 +2181,9 @@ function updateBudgetControls() {
   document.querySelectorAll('[data-budget-preset]').forEach(btn => {
     const val = parseInt(btn.getAttribute('data-budget-preset'), 10);
     if (val === state.targetBudget) {
-      btn.className = 'px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-black text-sky-800 bg-sky-100 border border-sky-300 shadow-2xs transition';
+      btn.className = 'h-8 px-2.5 rounded-xl text-[10px] sm:text-[11px] font-black text-white bg-[#667a5f] border border-[#667a5f] transition';
     } else {
-      btn.className = 'px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-sky-50 border border-transparent transition';
+      btn.className = 'h-8 px-2.5 rounded-xl text-[10px] sm:text-[11px] font-bold text-[#6f665e] bg-white border border-[#ddd4c9] transition';
     }
   });
 }
@@ -2193,9 +2193,9 @@ function renderTabs() {
     const tabId = btn.getAttribute('data-tab-target');
     const isActive = tabId === state.activeTab;
     if (isActive) {
-      btn.className = 'tab-btn active flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-4 text-white font-black rounded-2xl bg-gradient-to-r from-sky-500 to-teal-500 shadow-md shadow-sky-200/50 text-xs sm:text-sm transition-all';
+      btn.className = 'tab-btn active flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-4 font-black rounded-2xl text-xs sm:text-sm transition-all';
     } else {
-      btn.className = 'tab-btn flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-4 text-slate-700 hover:text-sky-700 hover:bg-sky-50 font-bold rounded-2xl text-xs sm:text-sm transition-all';
+      btn.className = 'tab-btn flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-4 font-bold rounded-2xl text-xs sm:text-sm transition-all';
     }
   });
 
@@ -2301,11 +2301,11 @@ function setWeeklyViewMode(mode) {
   const btnAll = document.getElementById('btn-weekly-view-all');
   if (btnSwipe && btnAll) {
     if (mode === 'swipe') {
-      btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-teal-800 shadow-2xs flex items-center gap-1 cursor-pointer';
-      btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+      btnSwipe.className = 'min-h-8 px-2.5 rounded-lg text-xs font-black transition-all bg-white text-[#52644c] shadow-sm flex items-center gap-1 cursor-pointer';
+      btnAll.className = 'min-h-8 px-2.5 rounded-lg text-xs font-bold transition-all text-[#746b62] flex items-center gap-1 cursor-pointer';
     } else {
-      btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-teal-800 shadow-2xs flex items-center gap-1 cursor-pointer';
-      btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+      btnAll.className = 'min-h-8 px-2.5 rounded-lg text-xs font-black transition-all bg-white text-[#52644c] shadow-sm flex items-center gap-1 cursor-pointer';
+      btnSwipe.className = 'min-h-8 px-2.5 rounded-lg text-xs font-bold transition-all text-[#746b62] flex items-center gap-1 cursor-pointer';
     }
   }
   renderWeeklyPlan();
@@ -2370,11 +2370,11 @@ function renderWeeklyPlan() {
   const btnAll = document.getElementById('btn-weekly-view-all');
   if (btnSwipe && btnAll) {
     if (state.weeklyViewMode === 'swipe') {
-      btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-teal-800 shadow-2xs flex items-center gap-1 cursor-pointer';
-      btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+      btnSwipe.className = 'min-h-8 px-2.5 rounded-lg text-xs font-black transition-all bg-white text-[#52644c] shadow-sm flex items-center gap-1 cursor-pointer';
+      btnAll.className = 'min-h-8 px-2.5 rounded-lg text-xs font-bold transition-all text-[#746b62] flex items-center gap-1 cursor-pointer';
     } else {
-      btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-teal-800 shadow-2xs flex items-center gap-1 cursor-pointer';
-      btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+      btnAll.className = 'min-h-8 px-2.5 rounded-lg text-xs font-black transition-all bg-white text-[#52644c] shadow-sm flex items-center gap-1 cursor-pointer';
+      btnSwipe.className = 'min-h-8 px-2.5 rounded-lg text-xs font-bold transition-all text-[#746b62] flex items-center gap-1 cursor-pointer';
     }
   }
 
@@ -3304,10 +3304,10 @@ function setRecipeViewMode(mode) {
   if (btnSwipe && btnAll) {
     if (mode === 'swipe') {
       btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-emerald-800 shadow-2xs flex items-center gap-1 cursor-pointer';
-      btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+      btnAll.className = 'min-h-8 px-2.5 rounded-lg text-xs font-bold transition-all text-[#746b62] flex items-center gap-1 cursor-pointer';
     } else {
       btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-emerald-800 shadow-2xs flex items-center gap-1 cursor-pointer';
-      btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+      btnSwipe.className = 'min-h-8 px-2.5 rounded-lg text-xs font-bold transition-all text-[#746b62] flex items-center gap-1 cursor-pointer';
     }
   }
   renderRecipeBook();
@@ -3465,10 +3465,10 @@ function renderRecipeBook() {
   if (btnSwipe && btnAll) {
     if (state.recipeViewMode === 'swipe') {
       btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-emerald-800 shadow-2xs flex items-center gap-1 cursor-pointer';
-      btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+      btnAll.className = 'min-h-8 px-2.5 rounded-lg text-xs font-bold transition-all text-[#746b62] flex items-center gap-1 cursor-pointer';
     } else {
       btnAll.className = 'px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-emerald-800 shadow-2xs flex items-center gap-1 cursor-pointer';
-      btnSwipe.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer';
+      btnSwipe.className = 'min-h-8 px-2.5 rounded-lg text-xs font-bold transition-all text-[#746b62] flex items-center gap-1 cursor-pointer';
     }
   }
 
