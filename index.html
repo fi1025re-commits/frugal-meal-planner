@@ -287,15 +287,15 @@
     </div>
   </nav>
 
-  <!-- ==================== メインコンテンツ（無駄な余白を削減し、献立が即座に視界に入る設計） ==================== -->
-  <main class="flex-1 max-w-6xl w-full mx-auto px-2.5 sm:px-6 py-2 sm:py-3">
+  <!-- ==================== メインコンテンツ（無駄な余白を削減し、スクロールなしで献立が直撃する設計） ==================== -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-2 sm:px-6 py-1 sm:py-2">
 
     <!-- ================= 1. 1週間の献立タブ ================= -->
     <section id="tab-weekly" class="tab-content">
       <!-- 上段：タイトル ＆ 表示モード切替（横スワイプカード vs 7日分全表示） ＆ 印刷 -->
-      <div class="mb-2 sm:mb-2.5 flex items-center justify-between gap-2 flex-wrap">
-        <div class="flex items-center gap-2 flex-wrap">
-          <h2 class="text-sm sm:text-base font-black text-slate-900 flex items-center gap-1.5">
+      <div class="mb-1 sm:mb-1.5 flex items-center justify-between gap-1.5 flex-wrap">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <h2 class="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1">
             <span>📅 今週の献立</span>
           </h2>
           <!-- 直感的でわかりやすい表示切替ボタン -->
@@ -456,17 +456,33 @@
           </div>
         </div>
 
-        <!-- 曜日切替ピルボタン（選択した曜日だけを即座にコンパクト表示） -->
-        <div id="recipe-day-buttons-bar" class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-1 border-t border-slate-100">
-          <span class="text-xs font-black text-slate-500 shrink-0">曜日絞り込み:</span>
-          <button type="button" onclick="setRecipeDayFilter('all')" data-recipe-day-btn="all" class="px-2.5 py-1 rounded-xl text-xs font-black transition-all shadow-2xs shrink-0 cursor-pointer bg-emerald-600 text-white">全表示</button>
-          <button type="button" onclick="setRecipeDayFilter('mon')" data-recipe-day-btn="mon" class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100">月</button>
-          <button type="button" onclick="setRecipeDayFilter('tue')" data-recipe-day-btn="tue" class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100">火</button>
-          <button type="button" onclick="setRecipeDayFilter('wed')" data-recipe-day-btn="wed" class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer bg-cyan-50 text-cyan-800 border border-cyan-200 hover:bg-cyan-100">水</button>
-          <button type="button" onclick="setRecipeDayFilter('thu')" data-recipe-day-btn="thu" class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100">木</button>
-          <button type="button" onclick="setRecipeDayFilter('fri')" data-recipe-day-btn="fri" class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100">金</button>
-          <button type="button" onclick="setRecipeDayFilter('sat')" data-recipe-day-btn="sat" class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer bg-indigo-50 text-indigo-800 border border-indigo-200 hover:bg-indigo-100">土</button>
-          <button type="button" onclick="setRecipeDayFilter('sun')" data-recipe-day-btn="sun" class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer bg-red-50 text-red-800 border border-red-200 hover:bg-red-100">日</button>
+        <!-- 曜日切替バー（スワイプ不要！7曜日が1行にぴったり収まる設計 ＆ スワイプ切替スイッチ） -->
+        <div id="recipe-day-buttons-bar" class="w-full pt-1.5 border-t border-slate-100 flex flex-col gap-1.5">
+          <div class="flex items-center justify-between gap-1 flex-wrap">
+            <!-- レシピ一覧の表示切替スイッチ（スワイプカード vs 7日全表示） -->
+            <div class="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200/90 shadow-2xs">
+              <button type="button" id="btn-recipe-view-swipe" onclick="setRecipeViewMode('swipe')" class="px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-white text-emerald-800 shadow-2xs flex items-center gap-1 cursor-pointer">
+                <span>📱 1日カード(スワイプ)</span>
+              </button>
+              <button type="button" id="btn-recipe-view-all" onclick="setRecipeViewMode('all')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer">
+                <span>📋 7日分全表示</span>
+              </button>
+            </div>
+            <button type="button" onclick="setRecipeDayFilter('all')" data-recipe-day-btn="all" class="px-2.5 py-1 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer">
+              7日分一括表示
+            </button>
+          </div>
+
+          <!-- 7曜日ボタン（スマホでも横スクロール一切不要で1行に100%収まるグリッド） -->
+          <div class="grid grid-cols-7 gap-1 w-full" id="recipe-day-grid-bar">
+            <button type="button" onclick="setRecipeDayFilter('mon')" data-recipe-day-btn="mon" class="py-1 rounded-xl text-xs font-bold transition-all cursor-pointer bg-sky-50 text-sky-800 border border-sky-200 text-center">月</button>
+            <button type="button" onclick="setRecipeDayFilter('tue')" data-recipe-day-btn="tue" class="py-1 rounded-xl text-xs font-bold transition-all cursor-pointer bg-rose-50 text-rose-800 border border-rose-200 text-center">火</button>
+            <button type="button" onclick="setRecipeDayFilter('wed')" data-recipe-day-btn="wed" class="py-1 rounded-xl text-xs font-bold transition-all cursor-pointer bg-cyan-50 text-cyan-800 border border-cyan-200 text-center">水</button>
+            <button type="button" onclick="setRecipeDayFilter('thu')" data-recipe-day-btn="thu" class="py-1 rounded-xl text-xs font-bold transition-all cursor-pointer bg-emerald-50 text-emerald-800 border border-emerald-200 text-center">木</button>
+            <button type="button" onclick="setRecipeDayFilter('fri')" data-recipe-day-btn="fri" class="py-1 rounded-xl text-xs font-bold transition-all cursor-pointer bg-amber-50 text-amber-800 border border-amber-200 text-center">金</button>
+            <button type="button" onclick="setRecipeDayFilter('sat')" data-recipe-day-btn="sat" class="py-1 rounded-xl text-xs font-bold transition-all cursor-pointer bg-indigo-50 text-indigo-800 border border-indigo-200 text-center">土</button>
+            <button type="button" onclick="setRecipeDayFilter('sun')" data-recipe-day-btn="sun" class="py-1 rounded-xl text-xs font-bold transition-all cursor-pointer bg-red-50 text-red-800 border border-red-200 text-center">日</button>
+          </div>
         </div>
       </div>
 
@@ -1084,8 +1100,8 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20260930_2235"></script>
-  <script src="app.js?v=20260930_2235"></script>
+  <script src="recipes.js?v=20260930_2300"></script>
+  <script src="app.js?v=20260930_2300"></script>
 
   <!-- PWA Service Worker 登録 ＆ 自動アップデート検知 -->
   <script>
