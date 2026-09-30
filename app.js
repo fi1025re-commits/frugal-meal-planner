@@ -38,7 +38,9 @@ const state = {
   weeklyViewMode: 'swipe', // 'swipe' (1日カード横スワイプ) | 'all' (7日分全表示)
   activeSwipeDayIndex: 0, // スワイプ表示時の現在アクティブな曜日インデックス (0〜6)
   recipeViewMode: 'swipe', // 'swipe' (レシピ一覧の1日カード横スワイプ) | 'all' (7日分全表示)
-  activeRecipeSwipeDayIndex: 0 // レシピスワイプ時の現在アクティブな曜日インデックス (0〜6)
+  activeRecipeSwipeDayIndex: 0, // レシピスワイプ時の現在アクティブな曜日インデックス (0〜6)
+  renderedTabs: { weekly: false, shopping: false, recipes: false },
+  recipeRenderLimit: 24
 };
 
 // LocalStorage キー
@@ -70,9 +72,10 @@ const STORAGE_KEY_RECIPE_VIEW_MODE = 'frugal_recipe_view_mode_v1';
 function safeCreateIcons() {
   if (typeof lucide !== 'undefined' && lucide && typeof lucide.createIcons === 'function') {
     try {
-      lucide.createIcons();
+      const root = document.getElementById(`tab-${state.activeTab}`) || document.body;
+      lucide.createIcons({ attrs: { 'stroke-width': 2 }, nameAttr: 'data-lucide', root });
     } catch (e) {
-      console.warn('Lucide icon error:', e);
+      try { lucide.createIcons(); } catch (_) {}
     }
   }
 }
@@ -691,7 +694,9 @@ function generateRandomWeeklyPlan(showNotify = true) {
     showToast(`目標予算【¥${state.targetBudget.toLocaleString()}】に合わせて被りなし献立（約¥${finalCost.toLocaleString()}）を作成しました！`);
   }
 
-  render();
+  state.renderedTabs.weekly = false;
+  state.renderedTabs.shopping = false;
+  render(true);
 
   if (state.familySyncCode && !state.isJoiningFromUrl) {
     pushSyncDataDebounced();
@@ -748,12 +753,86 @@ function getRecipeById(id) {
   return RECIPES_DATA.find(r => r && r.id === id) || null;
 }
 
+
+function getTotalDislikeCount() {
+  return Object.values(state.childrenPreferences || {}).reduce((sum, pref) => {
+    return sum + ((pref.dislikes || []).length) + ((pref.disabledFlavors || []).length);
+  }, 0);
+}
+
+function updateCoreFlowSummary() {
+  const budgetDisplay = document.getElementById('core-budget-display');
+  if (budgetDisplay) budgetDisplay.textContent = `¥${Number(state.targetBudget || 0).toLocaleString()} / 週`;
+
+  const dislikeDisplay = document.getElementById('core-dislike-display');
+  const total = getTotalDislikeCount();
+  if (dislikeDisplay) {
+    dislikeDisplay.textContent = total > 0
+      ? `${total}件を献立から除外中`
+      : 'まだ設定していません';
+  }
+
+  const shoppingDisplay = document.getElementById('core-shopping-display');
+  if (shoppingDisplay) {
+    const count = Array.isArray(state.shoppingDays) ? state.shoppingDays.length : 7;
+    shoppingDisplay.textContent = `${count}日分を自動集計`;
+  }
+
+  const coreBudgetInput = document.getElementById('core-budget-input');
+  if (coreBudgetInput && document.activeElement !== coreBudgetInput) {
+    coreBudgetInput.value = state.targetBudget;
+  }
+}
+
+window.openCoreBudgetPanel = function() {
+  const panel = document.getElementById('core-budget-panel');
+  if (!panel) return;
+  const input = document.getElementById('core-budget-input');
+  if (input) input.value = state.targetBudget;
+  panel.classList.remove('hidden');
+};
+
+window.closeCoreBudgetPanel = function() {
+  document.getElementById('core-budget-panel')?.classList.add('hidden');
+};
+
+window.applyCoreBudget = function() {
+  const input = document.getElementById('core-budget-input');
+  const value = parseInt(input?.value || '', 10);
+  if (!value || value < 3000 || value > 30000) {
+    showToast('予算は¥3,000〜¥30,000で入力してください');
+    return;
+  }
+  state.targetBudget = value;
+  saveBudget();
+  const mainInput = document.getElementById('target-budget-input');
+  if (mainInput) mainInput.value = value;
+  closeCoreBudgetPanel();
+  generateRandomWeeklyPlan(true);
+};
+
+window.openCoreShoppingList = function() {
+  state.activeTab = 'shopping';
+  renderTabs();
+  renderActiveTab(false);
+  setTimeout(() => {
+    document.getElementById('main-tab-nav')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 0);
+};
+
+window.goToAppTab = function(tab) {
+  state.activeTab = tab;
+  renderTabs();
+  renderActiveTab(false);
+};
+
 function setupEventListeners() {
   document.querySelectorAll('[data-tab-target]').forEach(button => {
     button.addEventListener('click', (e) => {
       const target = e.currentTarget.getAttribute('data-tab-target');
       state.activeTab = target;
       renderTabs();
+      renderActiveTab(false);
       // スマホまたはスクロール時にタブ上端へスムーズにスクロール
       const tabNav = document.getElementById('main-tab-nav');
       if (tabNav && window.scrollY > tabNav.offsetTop) {
@@ -795,6 +874,8 @@ function setupEventListeners() {
     });
   }
 
+  updateCoreFlowSummary();
+
   document.querySelectorAll('[data-budget-preset]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const val = parseInt(e.currentTarget.getAttribute('data-budget-preset'), 10);
@@ -802,6 +883,14 @@ function setupEventListeners() {
       if (budgetInput) budgetInput.value = val;
       saveBudget();
       generateRandomWeeklyPlan(true);
+    });
+  });
+
+  document.querySelectorAll('[data-core-budget]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const val = parseInt(e.currentTarget.getAttribute('data-core-budget'), 10);
+      const coreInput = document.getElementById('core-budget-input');
+      if (coreInput) coreInput.value = val;
     });
   });
 
@@ -2133,14 +2222,34 @@ window.handleResetData = function() {
 
 
 
-function render() {
+function renderActiveTab(force = false) {
+  const tab = state.activeTab || 'weekly';
+
+  if (tab === 'weekly') {
+    if (force || !state.renderedTabs.weekly) {
+      renderWeeklyPlan();
+      state.renderedTabs.weekly = true;
+    }
+  } else if (tab === 'shopping') {
+    if (force || !state.renderedTabs.shopping) {
+      renderShoppingList();
+      state.renderedTabs.shopping = true;
+    }
+  } else if (tab === 'recipes') {
+    if (force || !state.renderedTabs.recipes) {
+      renderRecipeBook();
+      state.renderedTabs.recipes = true;
+    }
+  }
+}
+
+function render(force = false) {
   renderTabs();
-  renderWeeklyPlan();
-  renderShoppingList();
-  renderRecipeBook();
   updateBudgetControls();
   updateSummaryBadge();
   updatePreferenceBadge();
+  updateCoreFlowSummary();
+  renderActiveTab(force);
   safeCreateIcons();
 }
 
@@ -2684,9 +2793,12 @@ window.shuffleDayMenu = function(dayId) {
   };
 
   savePlan();
+  state.renderedTabs.weekly = false;
+  state.renderedTabs.shopping = false;
   renderWeeklyPlan();
-  renderShoppingList();
+  if (state.activeTab === 'shopping') renderShoppingList();
   updateSummaryBadge();
+  updateCoreFlowSummary();
   showToast('この日のメニューを変更しました');
 };
 
@@ -3390,6 +3502,7 @@ window.setRecipeDayFilter = setRecipeDayFilter;
 
 function setRecipeSearchQuery(value) {
   state.searchQuery = (value || '').trim().toLowerCase();
+  state.recipeRenderLimit = 24;
   state.recipeBookMode = 'all';
   state.showFavoritesOnly = false;
   state.showBlacklistedOnly = false;
@@ -3399,6 +3512,7 @@ window.setRecipeSearchQuery = setRecipeSearchQuery;
 
 function setRecipeCategoryFilter(category) {
   state.selectedCategory = category || 'all';
+  state.recipeRenderLimit = 24;
   state.recipeBookMode = 'all';
   state.showFavoritesOnly = false;
   state.showBlacklistedOnly = false;
@@ -3445,6 +3559,11 @@ function syncRecipeLibraryControls() {
     searchInput.value = state.searchQuery || '';
   }
 }
+
+window.showMoreRecipes = function() {
+  state.recipeRenderLimit = Math.min((state.recipeRenderLimit || 24) + 24, RECIPES_DATA.length);
+  renderRecipeBook();
+};
 
 function renderRecipeBook() {
   const container = document.getElementById('recipe-book-container');
@@ -3538,7 +3657,10 @@ function renderRecipeBook() {
       return;
     }
 
-    html = recipesToDisplay.map(recipe => {
+    const totalRecipeCount = recipesToDisplay.length;
+    const visibleRecipes = recipesToDisplay.slice(0, state.recipeRenderLimit || 24);
+
+    html = visibleRecipes.map(recipe => {
       const cleanTitle = getCleanTitle(recipe);
       const cost = recipe.approxCostPerPerson * state.servings;
       const isFav = state.favoriteRecipeIds.includes(recipe.id);
@@ -3580,6 +3702,16 @@ function renderRecipeBook() {
         </article>
       `;
     }).join('');
+
+    if (totalRecipeCount > visibleRecipes.length) {
+      html += `
+        <div class="col-span-full text-center py-3">
+          <button type="button" onclick="showMoreRecipes()" class="px-5 py-2.5 border border-[#2d2925] bg-white text-[#2d2925] font-black text-xs shadow-[3px_3px_0_#2d2925]">
+            もっと見る（残り ${totalRecipeCount - visibleRecipes.length}品）
+          </button>
+        </div>
+      `;
+    }
   } else {
     // 今週の献立（曜日別）表示：曜日ボタン内に主菜のみ表記 ➔ タップで3品ボタン展開 ➔ レシピ表示
     if (!state.weeklyPlan) {
@@ -4112,6 +4244,7 @@ window.savePreferencesAndGenerate = function() {
 
   saveChildrenPreferences();
   saveOnboarding();
+  updateCoreFlowSummary();
   state.hasCompletedOnboarding = true;
   closePreferencesModal();
   generateRandomWeeklyPlan(true);
