@@ -1,7 +1,9 @@
 // Service Worker for 食費節約献立＆買い物リスト作成 (PWA)
-const CACHE_NAME = 'setsuyaku-recipe-v8';
+// 更新時に旧画面が残らないことを最優先したキャッシュ戦略
+const CACHE_VERSION = '20261001_0645';
+const CACHE_PREFIX = 'setsuyaku-recipe-';
+const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
-// オフライン動作用に初期キャッシュする静的アセット
 const PRECACHE_ASSETS = [
   './',
   './index.html',
@@ -29,78 +31,159 @@ const PRECACHE_ASSETS = [
   './images/recipes/real_croquette.webp'
 ];
 
-// インストール時: コアアセットをキャッシュ
+async function freshResponse(url) {
+  const response = await fetch(url, { cache: 'reload' });
+  if (!response || !response.ok) {
+    throw new Error(`Failed to precache: ${url}`);
+  }
+  return response;
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS);
-    }).then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+
+    // addAll() はブラウザHTTPキャッシュを使う場合があるため、
+    // cache:'reload' でサーバーの最新版を明示的に取得して保存する。
+    await Promise.all(
+      PRECACHE_ASSETS.map(async (url) => {
+        const response = await freshResponse(url);
+        await cache.put(url, response);
+      })
+    );
+
+    await self.skipWaiting();
+  })());
 });
 
-// アクティベート時: 古いバージョンのキャッシュを自動削除
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    }).then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+
+    // このアプリが作った旧バージョンのキャッシュだけを削除する。
+    await Promise.all(
+      names
+        .filter((name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
+        .map((name) => caches.delete(name))
+    );
+
+    if ('navigationPreload' in self.registration) {
+      try {
+        await self.registration.navigationPreload.enable();
+      } catch (_) {}
+    }
+
+    await self.clients.claim();
+  })());
 });
 
-// フェッチ時: 
-// 1. 同一オリジンのファイル(HTML, JS, 画像等) -> Network First (最新優先、圏外ならキャッシュ)
-// 2. 外部CDN(Tailwind, Lucide, Google Fonts) -> Cache First (高速化)
-// 3. 外部API(KVdb同期, GA4) -> Network Only
+function isExternalNoCache(url) {
+  return (
+    url.origin.includes('kvdb.io') ||
+    url.origin.includes('google-analytics') ||
+    url.origin.includes('googletagmanager') ||
+    url.origin.includes('googlesyndication') ||
+    url.origin.includes('doubleclick')
+  );
+}
+
+function isExternalStatic(url) {
+  return (
+    url.origin.includes('tailwindcss.com') ||
+    url.origin.includes('unpkg.com') ||
+    url.origin.includes('fonts.googleapis.com') ||
+    url.origin.includes('fonts.gstatic.com')
+  );
+}
+
+function isCoreAppRequest(url, request) {
+  if (request.mode === 'navigate') return true;
+  if (url.origin !== self.location.origin) return false;
+
+  const path = url.pathname;
+  return (
+    path.endsWith('/') ||
+    path.endsWith('/index.html') ||
+    path.endsWith('/app.js') ||
+    path.endsWith('/recipes.js') ||
+    path.endsWith('/manifest.json') ||
+    path.endsWith('/sw.js')
+  );
+}
+
+async function networkFirstFresh(request, preloadResponsePromise) {
+  try {
+    // ナビゲーションプリロードがあれば最優先で利用。
+    const preload = preloadResponsePromise ? await preloadResponsePromise : null;
+    if (preload && preload.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, preload.clone());
+      return preload;
+    }
+
+    // 重要ファイルはブラウザHTTPキャッシュを使わず、必ずネットワークへ確認する。
+    const response = await fetch(request, { cache: 'no-store' });
+
+    if (response && response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (_) {
+    const cached = await caches.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+
+    if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+      return caches.match('./index.html', { ignoreSearch: true });
+    }
+
+    throw _;
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // POSTやPUTなどの非GETリクエスト、または外部同期API(kvdb.io)・解析・広告(AdSense)はキャッシュしない
-  if (request.method !== 'GET' || url.origin.includes('kvdb.io') || url.origin.includes('google-analytics') || url.origin.includes('googletagmanager') || url.origin.includes('googlesyndication') || url.origin.includes('doubleclick')) {
+  if (request.method !== 'GET' || isExternalNoCache(url)) {
     return;
   }
 
-  // 外部CDN (Tailwind, Lucide, Google Fonts) -> Cache First
-  if (url.origin.includes('tailwindcss.com') || url.origin.includes('unpkg.com') || url.origin.includes('fonts.googleapis.com') || url.origin.includes('fonts.gstatic.com')) {
-    event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) return cachedResponse;
-        return fetch(request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
-          }
-          return networkResponse;
-        }).catch(() => cachedResponse);
-      })
-    );
+  // 外部CDNは更新頻度が低いため Cache First。
+  if (isExternalStatic(url)) {
+    event.respondWith((async () => {
+      const cached = await caches.match(request);
+      if (cached) return cached;
+
+      const response = await fetch(request);
+      if (response && response.ok) {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(request, response.clone());
+      }
+      return response;
+    })());
     return;
   }
 
-  // アプリ本体のファイル (index.html, app.js, recipes.js など) -> Network First (地下スーパーなどで圏外の場合はキャッシュを利用)
-  event.respondWith(
-    fetch(request)
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
+  // HTML / app.js / recipes.js / manifest は常に最新版を優先。
+  if (isCoreAppRequest(url, request)) {
+    event.respondWith(networkFirstFresh(request, event.preloadResponse));
+    return;
+  }
+
+  // 同一オリジンの画像等は Network First。
+  if (url.origin === self.location.origin) {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(request, { cache: 'no-cache' });
+        if (response && response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(request, response.clone());
         }
-        return networkResponse;
-      })
-      .catch(async () => {
-        // オフライン・圏外時: キャッシュから返す (クエリ文字列の違いを許容)
-        const cachedResponse = await caches.match(request, { ignoreSearch: true });
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        // HTMLリクエストでキャッシュが見つからない場合は index.html を返す
-        if (request.headers.get('accept') && request.headers.get('accept').includes('text/html')) {
-          return caches.match('./index.html', { ignoreSearch: true });
-        }
-      })
-  );
+        return response;
+      } catch (_) {
+        return caches.match(request, { ignoreSearch: true });
+      }
+    })());
+  }
 });
