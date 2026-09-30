@@ -2273,46 +2273,142 @@ function renderWeeklyPlan() {
 
       const isCooked = state.cookedDays.includes(day.id);
       const theme = DAY_THEMES[day.id] || { name: day.name, bg: 'bg-slate-100 text-slate-800 border-slate-200' };
-      const dayBg = isCooked ? 'bg-emerald-100/90 text-emerald-900 border-emerald-300' : theme.bg;
+      const isExpanded = Array.isArray(state.expandedDays) && state.expandedDays.includes(day.id);
+      const isChecked = state.shoppingDays.includes(day.id);
 
       const dayCost = (mainRecipe ? mainRecipe.approxCostPerPerson : 0) +
                       (sideRecipe ? sideRecipe.approxCostPerPerson : 0) +
                       (soupRecipe ? soupRecipe.approxCostPerPerson : 0);
 
+      const cleanMainTitle = mainRecipe ? getCleanTitle(mainRecipe) : '未設定';
+      const cleanSideTitle = sideRecipe ? getCleanTitle(sideRecipe) : '未設定';
+      const cleanSoupTitle = soupRecipe ? getCleanTitle(soupRecipe) : '未設定';
+
+      // 実写写真（完全一致写真がある場合のみ表示）
+      const hasRealPhoto = mainRecipe && mainRecipe.imagePath && mainRecipe.imagePath.includes('real_');
+
       const dayCard = document.createElement('div');
-      dayCard.className = `bg-white/95 rounded-3xl border-2 ${isCooked ? 'border-emerald-300 shadow-md ring-2 ring-emerald-200' : 'border-sky-100/90 shadow-sm hover:shadow-md hover:border-sky-200'} transition-all overflow-hidden flex flex-col`;
+      dayCard.className = `rounded-2xl border transition-all overflow-hidden bg-white shadow-2xs ${
+        isCooked ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-slate-200/90 hover:border-teal-300'
+      }`;
 
-      const proteinText = mainRecipe && mainRecipe.proteinType ? PROTEIN_ICONS[mainRecipe.proteinType] || '' : '';
-
-      const isChecked = state.shoppingDays.includes(day.id);
       dayCard.innerHTML = `
-        <div class="px-5 py-3 border-b border-sky-100 flex items-center justify-between flex-wrap gap-2 ${dayBg}">
-          <div class="flex items-center gap-2 flex-wrap">
-            <label class="inline-flex items-center gap-1.5 cursor-pointer bg-white/95 px-2 py-0.5 rounded-lg border ${isChecked ? 'border-teal-300 text-teal-900 shadow-2xs' : 'border-slate-300 text-slate-400 opacity-80'} transition-all hover:bg-white select-none active:scale-95" title="チェックを外すとこの日の食材が買い物リストから除外されます（外食や予定の日に便利）">
-              <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 text-teal-600 rounded border-slate-300 focus:ring-teal-400 cursor-pointer" onchange="toggleShoppingDay('${day.id}')">
-              <span class="text-[11px] font-black">${isChecked ? 'リスト反映' : '除外中'}</span>
-            </label>
-            <span class="text-base font-black">${theme.name}</span>
-            <span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-white/90 border border-current shadow-2xs">${state.servings}人分 約¥${dayCost * state.servings}</span>
-            ${proteinText ? `<span class="text-[11px] font-bold text-slate-700 bg-white/90 px-2 py-0.5 rounded-full border border-slate-200/80 shadow-2xs">${proteinText}</span>` : ''}
-            ${isCooked ? `<span class="text-[11px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">✅ 調理済 👏</span>` : ''}
+        <!-- 曜日ヘッダーボタン（主菜のみ表示・タップで主菜/副菜/汁物を展開） -->
+        <div onclick="toggleDayExpand('${day.id}')" 
+             class="px-3.5 py-2.5 sm:px-4 sm:py-3 cursor-pointer select-none flex items-center justify-between gap-2.5 transition-colors ${
+               isExpanded ? 'bg-teal-50/70 border-b border-teal-100' : 'hover:bg-slate-50'
+             }">
+          <div class="flex items-center gap-2.5 min-w-0 flex-1">
+            <!-- 曜日バッジ -->
+            <span class="text-xs font-black px-2.5 py-1 rounded-xl shrink-0 shadow-2xs ${
+              isCooked ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white'
+            }">
+              ${day.label}曜
+            </span>
+
+            <!-- 実写写真サムネイル（完全合致写真がある場合のみ表示） -->
+            ${hasRealPhoto ? `
+              <img src="${mainRecipe.imagePath}" alt="${cleanMainTitle}" loading="lazy" class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-cover border border-slate-200/80 shadow-2xs shrink-0">
+            ` : ''}
+
+            <!-- 主菜表示 -->
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-black px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-900 shrink-0">主菜</span>
+                <span class="text-xs sm:text-sm font-black text-slate-900 truncate">
+                  ${cleanMainTitle}
+                </span>
+              </div>
+            </div>
           </div>
-          <div class="flex items-center gap-1.5 ml-auto">
-            <button onclick="toggleCookedDay('${day.id}')" class="text-xs flex items-center gap-1 font-black px-3 py-1.5 rounded-xl transition-all shadow-2xs active:scale-95 ${isCooked ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-white/90 text-teal-900 hover:bg-teal-50 hover:text-teal-950 border border-teal-200'}" title="作ったチェックで30日重複履歴に記録">
-              <i data-lucide="${isCooked ? 'check-circle' : 'utensils'}" class="w-3.5 h-3.5"></i>
-              <span>${isCooked ? '調理済' : '🍳 作った！'}</span>
-            </button>
-            <button onclick="shuffleDayMenu('${day.id}')" class="text-xs flex items-center gap-1 font-bold hover:opacity-75 transition-opacity px-2 py-1.5 rounded-xl bg-white/90 text-slate-600 shadow-2xs hover:bg-white" title="この日のメニューをランダム変更">
-              <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
-            </button>
+
+          <!-- 右側：1日目安金額 ＆ 開閉アイコン -->
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-[11px] sm:text-xs font-black text-teal-700 bg-teal-50/90 px-2 py-0.5 rounded-lg border border-teal-200 shadow-2xs whitespace-nowrap">
+              約¥${dayCost * state.servings}
+            </span>
+            <span class="text-xs text-slate-400 font-bold transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}">
+              ▼
+            </span>
           </div>
         </div>
 
-        <div class="p-4 flex-1 flex flex-col gap-2.5 ${isCooked ? 'bg-emerald-50/20' : ''}">
-          ${renderDishRow(day.id, 'main', mainRecipe, '主菜')}
-          ${renderDishRow(day.id, 'side', sideRecipe, '副菜')}
-          ${renderDishRow(day.id, 'soup', soupRecipe, '汁物')}
-        </div>
+        <!-- 展開エリア（主菜・副菜・汁物ボタン ➔ タップでレシピ表示） -->
+        ${isExpanded ? `
+          <div class="p-3 sm:p-4 bg-slate-50/60 flex flex-col gap-2 animate-in fade-in duration-150">
+            <!-- 主菜ボタン -->
+            <div class="flex items-center gap-1.5">
+              <button type="button" 
+                      onclick="openDetailModal('${mainRecipe.id}')" 
+                      class="flex-1 py-2.5 px-3 rounded-xl bg-white border border-amber-200/90 hover:border-amber-400 hover:bg-amber-50/40 text-left transition-all flex items-center justify-between gap-2 shadow-2xs active:scale-98 cursor-pointer">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="text-[11px] font-black px-2 py-0.5 rounded-md bg-amber-500 text-white shrink-0">主菜</span>
+                  <span class="text-xs sm:text-sm font-bold text-slate-800 truncate">${cleanMainTitle}</span>
+                </div>
+                <span class="text-[11px] text-teal-700 font-black shrink-0 ml-1">約¥${(mainRecipe.approxCostPerPerson || 0) * state.servings}</span>
+              </button>
+              <button type="button" onclick="openChangeModal('${day.id}', 'main')" class="p-2 text-slate-400 hover:text-teal-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors shrink-0 shadow-2xs" title="主菜を変更">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- 副菜ボタン -->
+            <div class="flex items-center gap-1.5">
+              <button type="button" 
+                      onclick="openDetailModal('${sideRecipe.id}')" 
+                      class="flex-1 py-2.5 px-3 rounded-xl bg-white border border-lime-200/90 hover:border-lime-400 hover:bg-lime-50/40 text-left transition-all flex items-center justify-between gap-2 shadow-2xs active:scale-98 cursor-pointer">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="text-[11px] font-black px-2 py-0.5 rounded-md bg-lime-600 text-white shrink-0">副菜</span>
+                  <span class="text-xs sm:text-sm font-bold text-slate-800 truncate">${cleanSideTitle}</span>
+                </div>
+                <span class="text-[11px] text-teal-700 font-black shrink-0 ml-1">約¥${(sideRecipe.approxCostPerPerson || 0) * state.servings}</span>
+              </button>
+              <button type="button" onclick="openChangeModal('${day.id}', 'side')" class="p-2 text-slate-400 hover:text-teal-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors shrink-0 shadow-2xs" title="副菜を変更">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- 汁物ボタン -->
+            <div class="flex items-center gap-1.5">
+              <button type="button" 
+                      onclick="openDetailModal('${soupRecipe.id}')" 
+                      class="flex-1 py-2.5 px-3 rounded-xl bg-white border border-sky-200/90 hover:border-sky-400 hover:bg-sky-50/40 text-left transition-all flex items-center justify-between gap-2 shadow-2xs active:scale-98 cursor-pointer">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="text-[11px] font-black px-2 py-0.5 rounded-md bg-sky-600 text-white shrink-0">汁物</span>
+                  <span class="text-xs sm:text-sm font-bold text-slate-800 truncate">${cleanSoupTitle}</span>
+                </div>
+                <span class="text-[11px] text-teal-700 font-black shrink-0 ml-1">約¥${(soupRecipe.approxCostPerPerson || 0) * state.servings}</span>
+              </button>
+              <button type="button" onclick="openChangeModal('${day.id}', 'soup')" class="p-2 text-slate-400 hover:text-teal-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors shrink-0 shadow-2xs" title="汁物を変更">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- 展開内フッター操作（調理済チェック・再抽選・買い物リスト連動） -->
+            <div class="pt-2 mt-1 border-t border-slate-200/70 flex items-center justify-between text-xs gap-2 flex-wrap">
+              <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-600 select-none text-[11px]">
+                <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 text-teal-600 rounded border-slate-300 focus:ring-teal-400 cursor-pointer" onchange="toggleShoppingDay('${day.id}')">
+                <span class="font-bold">${isChecked ? '買い物リストに反映中' : 'この日を除外中'}</span>
+              </label>
+
+              <div class="flex items-center gap-1.5 ml-auto">
+                <button type="button" 
+                        onclick="toggleCookedDay('${day.id}')" 
+                        class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all shadow-2xs ${
+                          isCooked ? 'bg-emerald-600 text-white' : 'bg-white border border-teal-200 text-teal-900 hover:bg-teal-50'
+                        }">
+                  ${isCooked ? '✅ 調理済' : '🍳 作った！'}
+                </button>
+                <button type="button" 
+                        onclick="shuffleDayMenu('${day.id}')" 
+                        class="p-1.5 text-slate-500 hover:text-slate-800 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 shadow-2xs" 
+                        title="この日の3品を再抽選">
+                  <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        ` : ''}
       `;
 
       container.appendChild(dayCard);
@@ -2337,6 +2433,19 @@ function renderWeeklyPlan() {
 
   safeCreateIcons();
 }
+
+// 曜日のアコーディオン開閉トグル
+window.toggleDayExpand = function(dayId) {
+  if (!Array.isArray(state.expandedDays)) {
+    state.expandedDays = [];
+  }
+  if (state.expandedDays.includes(dayId)) {
+    state.expandedDays = state.expandedDays.filter(id => id !== dayId);
+  } else {
+    state.expandedDays.push(dayId);
+  }
+  renderWeeklyPlan();
+};
 
 function renderDishRow(dayId, category, recipe, label) {
   if (!recipe) return '';
@@ -3661,96 +3770,120 @@ window.openDetailModal = function(recipeId) {
   if (recipe.category === 'main') categoryBadgeClass = 'bg-gradient-to-r from-amber-500 to-orange-500 text-white';
   else if (recipe.category === 'side') categoryBadgeClass = 'bg-gradient-to-r from-lime-500 to-emerald-500 text-white';
 
-  const mainImgHtml = recipe.category === 'main' ? `
-    <div class="w-full h-44 sm:h-52 overflow-hidden bg-slate-100 relative">
-      <img src="${recipe.imagePath || (typeof getMainDishImage === 'function' ? getMainDishImage(recipe) : 'images/recipes/main_default.webp')}" alt="${cleanTitle}" class="w-full h-full object-cover">
-      <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
+  const hasRealPhoto = recipe.imagePath && recipe.imagePath.includes('real_');
+  const mainImgHtml = hasRealPhoto ? `
+    <div class="w-full h-44 sm:h-52 overflow-hidden bg-slate-900 relative">
+      <img src="${recipe.imagePath}" alt="${cleanTitle}" class="w-full h-full object-cover">
+      <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
       <span class="absolute bottom-3 left-4 text-xs font-black px-2.5 py-1 rounded-lg bg-black/60 text-white backdrop-blur-2xs">
-        主菜のおかず
+        ${categoryLabels[recipe.category] || '主菜'}
       </span>
     </div>
   ` : '';
 
   content.innerHTML = `
     ${mainImgHtml}
-    <div class="p-5 sm:p-6 border-b border-sky-100 bg-white">
-      <div class="flex items-center gap-2 mb-3 flex-wrap">
-        <span class="text-xs font-black px-3 py-1 rounded-full shadow-2xs ${categoryBadgeClass}">
+    <div class="p-4 sm:p-6 border-b border-sky-100 bg-white">
+      <div class="flex items-center gap-2 mb-2 flex-wrap">
+        <span class="text-xs font-black px-2.5 py-0.5 rounded-lg shadow-2xs ${categoryBadgeClass}">
           ${categoryLabels[recipe.category]}
         </span>
         ${cuisineBadge}
         ${proteinBadge}
-        <span class="text-xs text-slate-500 font-bold">⏱️ 調理時間 約${recipe.time}</span>
-        <span class="text-xs font-black text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full ml-auto shadow-2xs">
-          ${state.servings}人分目安: 約¥${cost5p}
+        <span class="text-xs text-slate-500 font-bold">⏱️ 約${recipe.time}</span>
+        <span class="text-xs font-black text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-lg ml-auto shadow-2xs">
+          ${state.servings}人分 約¥${cost5p}
         </span>
       </div>
 
       <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
-        <h3 class="text-xl font-black text-slate-900 leading-snug">${cleanTitle}</h3>
-        <div class="flex items-center gap-2 flex-wrap">
-          <button onclick="toggleFavorite('${recipe.id}', event)" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs ${state.favoriteRecipeIds.includes(recipe.id) ? 'bg-amber-400 text-amber-950 font-black ring-2 ring-amber-300' : 'bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-800'}">
-            <span class="text-base">${state.favoriteRecipeIds.includes(recipe.id) ? '★' : '☆'}</span>
+        <h3 class="text-lg sm:text-xl font-black text-slate-900 leading-snug">${cleanTitle}</h3>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button onclick="toggleFavorite('${recipe.id}', event)" class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-2xs ${state.favoriteRecipeIds.includes(recipe.id) ? 'bg-amber-400 text-amber-950 font-black ring-2 ring-amber-300' : 'bg-slate-100 hover:bg-amber-100 text-slate-600'}">
+            <span class="text-sm">${state.favoriteRecipeIds.includes(recipe.id) ? '★' : '☆'}</span>
             <span>${state.favoriteRecipeIds.includes(recipe.id) ? 'お気に入り中' : 'お気に入り'}</span>
           </button>
-          <button onclick="toggleBlacklist('${recipe.id}', event)" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs ${state.blacklistedRecipeIds.includes(recipe.id) ? 'bg-rose-600 text-white font-black ring-2 ring-rose-400' : 'bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700'}">
-            <span class="text-sm">🚫</span>
-            <span>${state.blacklistedRecipeIds.includes(recipe.id) ? '除外中' : '献立から除外'}</span>
+          <button onclick="toggleBlacklist('${recipe.id}', event)" class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-2xs ${state.blacklistedRecipeIds.includes(recipe.id) ? 'bg-rose-600 text-white font-black' : 'bg-slate-100 hover:bg-rose-50 text-slate-600'}">
+            <span class="text-xs">🚫</span>
+            <span>${state.blacklistedRecipeIds.includes(recipe.id) ? '除外中' : '除外'}</span>
           </button>
         </div>
       </div>
-      <p class="text-sm text-slate-600 leading-relaxed">${recipe.description}</p>
-      
-      <div class="mt-4 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-xs text-emerald-950 leading-relaxed">
-        <span class="text-lg">👶</span>
-        <div>
-          <strong class="font-bold text-emerald-800">お子様が喜ぶポイント・克服のコツ：</strong>
-          ${recipe.kidsTip || '子供も食べやすいマイルドな味付けです。'}
-        </div>
-      </div>
-
-      <div class="mt-2.5 p-3.5 bg-amber-50/80 border border-amber-200/70 rounded-xl flex items-start gap-2.5 text-xs text-amber-900 leading-relaxed">
-        <i data-lucide="sparkles" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
-        <div>
-          <strong class="font-bold text-amber-800">節約＆かさ増し技：</strong>
-          ${recipe.tip}
-        </div>
-      </div>
+      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">${recipe.description}</p>
     </div>
 
-    <div class="p-5 sm:p-6 border-b border-slate-100 bg-slate-50/50">
-      <h4 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
-        <i data-lucide="shopping-basket" class="w-4 h-4 text-emerald-600"></i>
-        材料（${state.servings}人分）
+    <!-- 材料一覧（2列カードで分量が一目瞭然） -->
+    <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/60">
+      <h4 class="font-black text-slate-800 text-sm mb-2.5 flex items-center justify-between">
+        <span class="flex items-center gap-1.5">
+          <span>🥕</span>
+          <span>材料（${state.servings}人分）</span>
+        </span>
+        <span class="text-[11px] font-normal text-slate-500">※調味料はお好みで調整</span>
       </h4>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+      <div class="grid grid-cols-2 gap-2 text-xs sm:text-sm">
         ${recipe.ingredients.map(ing => {
           const scaledAmount = ing.amount * state.servings;
           return `
-            <div class="flex justify-between py-1.5 px-3 bg-white rounded-lg border border-slate-200/60">
-              <span class="text-slate-700 font-medium">${ing.name}</span>
-              <span class="text-slate-900 font-bold">${formatAmount(scaledAmount, ing.unit)}</span>
+            <div class="flex items-center justify-between py-1.5 px-2.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
+              <span class="text-slate-800 font-bold truncate">${ing.name}</span>
+              <span class="text-teal-700 font-black shrink-0 ml-1">${formatAmount(scaledAmount, ing.unit)}</span>
             </div>
           `;
         }).join('')}
       </div>
     </div>
 
-    <div class="p-5 sm:p-6">
-      <h4 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
-        <i data-lucide="chef-hat" class="w-4 h-4 text-emerald-600"></i>
-        作り方手順（3ステップ）
+    <!-- 作り方手順（ステップごとの見出しカード・調理中でも見やすい大文字） -->
+    <div class="p-4 sm:p-6">
+      <h4 class="font-black text-slate-800 text-sm mb-3 flex items-center gap-1.5">
+        <span>🍳</span>
+        <span>作り方手順（かんたん3ステップ）</span>
       </h4>
-      <ol class="space-y-3 mb-2">
-        ${(recipe.instructions && recipe.instructions.length > 0 ? recipe.instructions : ['材料を切って下ごしらえをします。', 'フライパンや鍋で加熱調理します。', '調味料で味を調えて完成です。']).map((step, idx) => `
-          <li class="flex items-start gap-3 text-sm text-slate-700 leading-relaxed">
-            <span class="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs shrink-0 mt-0.5">
-              ${idx + 1}
-            </span>
-            <span>${step}</span>
-          </li>
-        `).join('')}
-      </ol>
+      <div class="space-y-2.5 mb-4">
+        ${(recipe.instructions && recipe.instructions.length > 0 ? recipe.instructions : ['材料を切って下ごしらえをします。', 'フライパンや鍋で加熱調理します。', '調味料で味を調えて完成です。']).map((step, idx) => {
+          const stepTitles = ['下ごしらえ・切る', '加熱・炒める', '味付け・仕上げ'];
+          const title = stepTitles[idx] || `手順 ${idx + 1}`;
+          return `
+            <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-2xs">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="px-2 py-0.5 rounded-lg bg-emerald-600 text-white font-black text-[11px]">
+                  STEP ${idx + 1}
+                </span>
+                <span class="font-black text-slate-900 text-xs sm:text-sm">
+                  ${title}
+                </span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-800 leading-relaxed font-bold pl-0.5">
+                ${step}
+              </p>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- 補足情報（お子様向けコツ・節約ワザ） -->
+      <div class="space-y-2 pt-2 border-t border-slate-100">
+        <details class="rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-xs p-2.5 cursor-pointer">
+          <summary class="font-bold text-emerald-900 flex items-center justify-between select-none">
+            <span>👶 お子様が喜ぶポイント・克服のコツ</span>
+            <span class="text-[10px] text-emerald-600">開く ▼</span>
+          </summary>
+          <p class="mt-2 text-slate-700 leading-relaxed pl-1">
+            ${recipe.kidsTip || '子供も食べやすいマイルドな味付けです。'}
+          </p>
+        </details>
+
+        <details class="rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs p-2.5 cursor-pointer">
+          <summary class="font-bold text-amber-900 flex items-center justify-between select-none">
+            <span>✨ 節約＆かさ増し技</span>
+            <span class="text-[10px] text-amber-600">開く ▼</span>
+          </summary>
+          <p class="mt-2 text-slate-700 leading-relaxed pl-1">
+            ${recipe.tip}
+          </p>
+        </details>
+      </div>
     </div>
   `;
 

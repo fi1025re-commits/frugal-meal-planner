@@ -6676,24 +6676,27 @@ const DAYS_OF_WEEK = [
 
 const AISLE_ORDER = ["野菜", "肉・魚", "大豆・乳・加工品", "調味料・その他"];
 
-// 主菜レシピ用の画像パス解決関数
+// レシピに完全合致する商用フリー実写料理写真のマッピング
 function getMainDishImage(recipe) {
-  if (!recipe) return 'images/recipes/main_default.webp';
+  if (!recipe) return '';
   if (recipe.imagePath) return recipe.imagePath;
-  if (recipe.category !== 'main') return '';
 
-  const pt = recipe.proteinType || '';
-  if (pt === 'chicken') return 'images/recipes/main_chicken.webp';
-  if (pt === 'pork') return 'images/recipes/main_pork.webp';
-  if (pt === 'mince') return 'images/recipes/main_mince.webp';
-  if (pt === 'fish') return 'images/recipes/main_fish.webp';
-  if (pt === 'soy') return 'images/recipes/main_soy.webp';
-  return 'images/recipes/main_default.webp';
+  const title = recipe.title || '';
+  if (title.includes('ハンバーグ')) return 'images/recipes/real_hamburg.webp';
+  if (title.includes('チキン南蛮')) return 'images/recipes/real_chicken_nanban.webp';
+  if (title.includes('唐揚げ') || title.includes('から揚げ')) return 'images/recipes/real_karaage.webp';
+  if (title.includes('餃子')) return 'images/recipes/real_gyoza.webp';
+  if (title.includes('鮭') || title.includes('サーモン')) return 'images/recipes/real_salmon.webp';
+  if (title.includes('サバ') || title.includes('魚')) return 'images/recipes/real_grilled_fish.webp';
+  if (title.includes('生姜焼き') || title.includes('しょうが焼き')) return 'images/recipes/real_pork_ginger.webp';
+  if (title.includes('酢豚')) return 'images/recipes/real_sweet_sour_pork.webp';
+  if (title.includes('麻婆豆腐')) return 'images/recipes/real_mapo_tofu.webp';
+  if (title.includes('お好み焼き')) return 'images/recipes/real_okonomiyaki.webp';
+
+  return '';
 }
 
-// 主菜レシピに imagePath を割り当て
+// レシピに完全合致する実写写真のみを割り当て（不一致写真・イラストは非表示）
 RECIPES_DATA.forEach(r => {
-  if (r.category === 'main' && !r.imagePath) {
-    r.imagePath = getMainDishImage(r);
-  }
+  r.imagePath = getMainDishImage(r);
 });
