@@ -1,6 +1,6 @@
 // Service Worker for 食費節約献立＆買い物リスト作成 (PWA)
 // 更新時に旧画面が残らないことを最優先したキャッシュ戦略
-const CACHE_VERSION = '20261001_0800';
+const CACHE_VERSION = '20261001_0840';
 const CACHE_PREFIX = 'setsuyaku-recipe-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
@@ -14,21 +14,7 @@ const PRECACHE_ASSETS = [
   './ogp.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/icon-maskable-512.png',
-  './images/recipes/real_hamburg.webp',
-  './images/recipes/real_chicken_nanban.webp',
-  './images/recipes/real_karaage.webp',
-  './images/recipes/real_gyoza.webp',
-  './images/recipes/real_salmon.webp',
-  './images/recipes/real_grilled_fish.webp',
-  './images/recipes/real_pork_ginger.webp',
-  './images/recipes/real_sweet_sour_pork.webp',
-  './images/recipes/real_mapo_tofu.webp',
-  './images/recipes/real_okonomiyaki.webp',
-  './images/recipes/real_curry.webp',
-  './images/recipes/real_stew.webp',
-  './images/recipes/real_nikujaga.webp',
-  './images/recipes/real_croquette.webp'
+  './icons/icon-maskable-512.png'
 ];
 
 async function freshResponse(url) {
