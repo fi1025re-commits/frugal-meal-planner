@@ -3407,25 +3407,16 @@ function setRecipeCategoryFilter(category) {
 window.setRecipeCategoryFilter = setRecipeCategoryFilter;
 
 function getRecipeCardImage(recipe) {
-  const title = getCleanTitle(recipe);
-  const rules = [
-    [/ハンバーグ/, 'real_hamburg.webp'],
-    [/チキン南蛮|南蛮/, 'real_chicken_nanban.webp'],
-    [/唐揚げ|から揚げ|からあげ/, 'real_karaage.webp'],
-    [/コロッケ/, 'real_croquette.webp'],
-    [/カレー/, 'real_curry.webp'],
-    [/シチュー/, 'real_stew.webp'],
-    [/餃子|ぎょうざ/, 'real_gyoza.webp'],
-    [/麻婆|マーボー/, 'real_mapo_tofu.webp'],
-    [/肉じゃが/, 'real_nikujaga.webp'],
-    [/お好み焼/, 'real_okonomiyaki.webp'],
-    [/生姜焼|しょうが焼/, 'real_pork_ginger.webp'],
-    [/鮭|サーモン/, 'real_salmon.webp'],
-    [/酢豚/, 'real_sweet_sour_pork.webp'],
-    [/焼き魚|塩焼き|さば|サバ|ぶり|鯖/, 'real_grilled_fish.webp']
-  ];
-  const match = rules.find(([pattern]) => pattern.test(title));
-  return match ? 'images/recipes/' + match[1] : '';
+  // 料理名から画像を推測しない。
+  // レシピデータ側に、この料理専用として明示登録された画像だけを表示する。
+  if (!recipe || !recipe.image) return '';
+  const image = String(recipe.image).trim();
+
+  // 外部URLのホットリンクは使わず、当サイト内の画像だけ許可する。
+  if (/^images\/recipes\/[a-zA-Z0-9._/-]+$/.test(image)) {
+    return image;
+  }
+  return '';
 }
 
 function getRecipeFallbackEmoji(recipe) {
@@ -3556,7 +3547,7 @@ function renderRecipeBook() {
       const categoryLabel = categoryLabels[recipe.category] || 'レシピ';
       const imageHtml = imagePath
         ? `<img src="${imagePath}" alt="${cleanTitle}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;recipe-card-fallback&quot;>${getRecipeFallbackEmoji(recipe)}</div>'">`
-        : `<div class="recipe-card-fallback">${getRecipeFallbackEmoji(recipe)}</div>`;
+        : `<div class="recipe-card-fallback"><div class="flex flex-col items-center gap-1"><span>${getRecipeFallbackEmoji(recipe)}</span><span class="text-[10px] font-black text-[#8b8178]">写真準備中</span></div></div>`;
 
       return `
         <article class="recipe-card-refresh ${isBlacklisted ? 'opacity-70' : ''}" onclick="openDetailModal('${recipe.id}')">
