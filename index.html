@@ -161,70 +161,34 @@
   <!-- ==================== 冷蔵庫貼り用 A4横1枚 印刷専用コンテナ（ブラウザ印刷時のみ表示） ==================== -->
   <div id="print-weekly-table-container"></div>
 
-  <!-- ==================== ヘッダー（通常スクロールで邪魔にならない構成） ==================== -->
+  <!-- ==================== ヘッダー（超コンパクト・スクロール不要設計） ==================== -->
   <header class="bg-white/95 border-b border-sky-100 shadow-2xs">
-    <div class="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 sm:gap-3">
+    <div class="max-w-6xl mx-auto px-3 sm:px-6 py-1.5 sm:py-2 flex items-center justify-between gap-2 flex-wrap">
       
       <!-- ロゴ＆タイトル -->
-      <div class="flex items-center justify-between sm:justify-start gap-2.5">
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-sky-400 via-teal-400 to-lime-300 flex items-center justify-center text-white shadow-md shadow-sky-200/50 text-xl sm:text-2xl shrink-0">
-            🍳
-          </div>
-          <div>
-            <h1 class="text-base sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5 sm:gap-2">
-              <span>食費節約レシピまとめ集</span>
-              <span class="text-[10px] sm:text-[11px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-2xs">✨ 無料</span>
-            </h1>
-            <p class="text-[11px] sm:text-xs text-slate-500 font-bold hidden sm:flex items-center gap-1">
-              <span>🍀</span>
-              <span>家族みんなが喜ぶ！かんたん＆偏らない1週間節約献立＆買い出しメーカー</span>
-            </p>
-          </div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-400 via-teal-400 to-lime-300 flex items-center justify-center text-white shadow-2xs text-lg shrink-0">
+          🍳
         </div>
-
-        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <!-- PWAアプリ追加ボタン (対応端末で自動表示) -->
-          <button id="btn-install-pwa" class="hidden inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-black text-amber-900 bg-amber-50/90 hover:bg-amber-100 transition-all border-2 border-amber-300 shadow-2xs active:scale-95 cursor-pointer animate-pulse" title="ホーム画面に追加してアプリとして使う">
-            <span class="text-sm leading-none">📲</span>
-            <span>アプリ追加</span>
-          </button>
-
-          <!-- 使い方ガイドボタン -->
-          <button id="btn-open-guide" onclick="openGuideModal()" class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-bold text-teal-800 bg-teal-50/90 hover:bg-teal-100 transition-all border-2 border-teal-200 shadow-2xs active:scale-95 cursor-pointer" title="使い方を見る">
-            <span class="text-sm leading-none">❓</span>
-            <span>使い方</span>
-          </button>
-
-          <!-- 家族共有ボタン -->
-          <button id="btn-open-sync" onclick="openSyncModal()" class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-bold text-indigo-800 bg-indigo-50/90 hover:bg-indigo-100 transition-all border-2 border-indigo-200 shadow-2xs active:scale-95 cursor-pointer" title="家族で献立と買い物リストを共有">
-            <span class="text-sm leading-none">👥</span>
-            <span>家族共有</span>
-            <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-slate-300 ml-0.5"></span>
-          </button>
-
-          <!-- PC専用：スマホ連携ボタン -->
-          <button id="btn-open-mobile-modal" onclick="openMobileModal()" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold text-sky-900 bg-sky-50/90 hover:bg-sky-100/90 transition-all border-2 border-sky-200 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer" title="スマホで実機確認（QRコード表示）">
-            <span class="text-base leading-none">📱</span>
-            <span>スマホで見る</span>
-          </button>
-        </div>
+        <h1 class="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+          <span>食費節約レシピ</span>
+          <span class="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-teal-500 text-white">無料</span>
+        </h1>
       </div>
 
-      <!-- アクションボタン群（好み設定・人数ステッパー・献立生成） -->
-      <div class="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-between sm:justify-end">
+      <!-- アクションボタン群（好み設定・人数ステッパー・献立生成・共有・ガイド） -->
+      <div class="flex items-center gap-1.5 ml-auto flex-wrap">
         <!-- お子様の好み設定ボタン -->
-        <button id="btn-open-preferences" onclick="openPreferencesModal(false)" class="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-2.5 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-bold text-lime-900 bg-lime-50/90 hover:bg-lime-100/90 transition-all border-2 border-lime-200 shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap">
-          <span class="text-sm sm:text-base leading-none">👶</span>
+        <button id="btn-open-preferences" onclick="openPreferencesModal(false)" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold text-lime-900 bg-lime-50 hover:bg-lime-100 border border-lime-200 shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap">
+          <span>👶</span>
           <span>好み設定</span>
         </button>
 
         <!-- 家族人数ステッパー（− 3人分 ＋） -->
-        <div class="flex-1 sm:flex-initial flex items-center justify-center bg-white rounded-2xl border-2 border-sky-200/90 shadow-2xs overflow-hidden select-none">
-          <button type="button" onclick="changeServingsByStep(-1)" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center font-black text-sky-800 hover:bg-sky-50 active:bg-sky-100 transition cursor-pointer text-sm" title="1人減らす">－</button>
-          <span id="servings-display" class="px-1.5 sm:px-2 font-black text-sky-950 text-[11px] sm:text-xs whitespace-nowrap">3人分</span>
-          <button type="button" onclick="changeServingsByStep(1)" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center font-black text-sky-800 hover:bg-sky-50 active:bg-sky-100 transition cursor-pointer text-sm" title="1人増やす">＋</button>
-          <!-- 互換用非表示select -->
+        <div class="inline-flex items-center bg-white rounded-xl border border-sky-200 shadow-2xs overflow-hidden select-none">
+          <button type="button" onclick="changeServingsByStep(-1)" class="w-6 h-6 flex items-center justify-center font-black text-sky-800 hover:bg-sky-50 transition cursor-pointer text-xs" title="1人減らす">－</button>
+          <span id="servings-display" class="px-1.5 font-black text-sky-950 text-[11px] whitespace-nowrap">3人分</span>
+          <button type="button" onclick="changeServingsByStep(1)" class="w-6 h-6 flex items-center justify-center font-black text-sky-800 hover:bg-sky-50 transition cursor-pointer text-xs" title="1人増やす">＋</button>
           <select id="servings-select" class="hidden">
             <option value="1">1人分</option>
             <option value="2">2人分</option>
@@ -237,62 +201,62 @@
         </div>
 
         <!-- 1週間分自動生成ボタン -->
-        <button id="btn-regenerate-weekly" onclick="generateRandomWeeklyPlan(true)" class="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 transition-all shadow-md shadow-sky-200/60 active:scale-95 cursor-pointer whitespace-nowrap">
-          <i data-lucide="sparkles" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+        <button id="btn-regenerate-weekly" onclick="generateRandomWeeklyPlan(true)" class="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-[11px] font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 transition-all shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
           <span>献立生成</span>
         </button>
+
+        <!-- ガイド・共有（コンパクト） -->
+        <button id="btn-open-guide" onclick="openGuideModal()" class="p-1 text-slate-500 hover:text-teal-700 hover:bg-slate-100 rounded-lg transition" title="使い方">
+          <span class="text-xs">❓</span>
+        </button>
+        <button id="btn-open-sync" onclick="openSyncModal()" class="p-1 text-slate-500 hover:text-indigo-700 hover:bg-slate-100 rounded-lg transition" title="家族共有">
+          <span class="text-xs">👥</span>
+          <span id="sync-status-dot" class="inline-block w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+        </button>
+        <button id="btn-install-pwa" class="hidden"></button>
+        <button id="btn-open-mobile-modal" class="hidden"></button>
       </div>
     </div>
 
-
-    <!-- ================= 予算コントロール＆ステータスバー ================= -->
-    <div class="bg-gradient-to-r from-sky-50/80 via-teal-50/60 to-lime-50/80 border-t border-sky-100/80 py-2 px-3 sm:px-6">
-      <div class="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+    <!-- ================= 予算コントロール＆ステータスバー（スリム1行） ================= -->
+    <div class="bg-gradient-to-r from-sky-50/70 via-teal-50/50 to-lime-50/70 border-t border-sky-100/80 py-1 px-3 sm:px-6 text-[11px]">
+      <div class="max-w-6xl mx-auto flex items-center justify-between gap-2 flex-wrap">
         
-        <!-- 目標予算の設定コントロール -->
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="font-black text-slate-800 flex items-center gap-1">
-            <span class="text-sm">🎯</span>
-            <span class="text-[11px] sm:text-xs">目標予算:</span>
+        <!-- 目標予算設定 -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="font-bold text-slate-800 flex items-center gap-0.5 shrink-0">
+            <span>🎯 予算:</span>
           </span>
 
           <!-- プリセットボタン -->
-          <div class="inline-flex rounded-xl shadow-2xs bg-white border border-sky-100 p-0.5">
-            <button data-budget-preset="3500" class="px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-sky-100 transition">¥3,500</button>
-            <button data-budget-preset="4500" class="px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-black text-sky-800 bg-sky-100 border border-sky-300 shadow-2xs transition">¥4,500</button>
-            <button data-budget-preset="5500" class="px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-sky-100 transition">¥5,500</button>
+          <div class="inline-flex rounded-lg shadow-2xs bg-white border border-sky-100 p-0.5 shrink-0">
+            <button data-budget-preset="3500" class="px-1.5 py-0.2 rounded text-[10px] font-bold text-slate-600 hover:bg-sky-50 transition">¥3.5k</button>
+            <button data-budget-preset="4500" class="px-1.5 py-0.2 rounded text-[10px] font-black text-sky-800 bg-sky-100 border border-sky-300 shadow-2xs transition">¥4.5k</button>
+            <button data-budget-preset="5500" class="px-1.5 py-0.2 rounded text-[10px] font-bold text-slate-600 hover:bg-sky-50 transition">¥5.5k</button>
           </div>
 
           <!-- 手入力 -->
-          <div class="flex items-center bg-white border border-sky-200 rounded-xl px-2 py-0.5 shadow-2xs">
-            <span class="text-sky-500 font-black mr-0.5 text-[11px]">¥</span>
+          <div class="flex items-center bg-white border border-sky-200 rounded-lg px-1.5 py-0.2 shadow-2xs shrink-0">
+            <span class="text-sky-500 font-bold mr-0.5">¥</span>
             <input type="number" id="target-budget-input" step="100" min="2000" max="30000" value="4500"
-                   class="w-16 sm:w-20 border-none bg-transparent p-0 text-slate-900 font-black focus:ring-0 text-[11px] sm:text-xs">
+                   class="w-14 border-none bg-transparent p-0 text-slate-900 font-bold focus:ring-0 text-[11px]">
           </div>
-
-          <div id="badge-preferences-summary" class="hidden sm:block">
-            <!-- 好み状況バッジ -->
-          </div>
+          <div id="badge-preferences-summary" class="hidden"></div>
         </div>
 
         <!-- 予算メーター＆差額サマリー -->
-        <div class="flex items-center gap-2.5 sm:gap-4 flex-wrap justify-between sm:justify-end">
-          <!-- 差額バッジ -->
-          <span id="badge-budget-diff" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black bg-sky-100 text-sky-800 border border-sky-200 shadow-2xs">
-            <!-- JSで動的更新 -->
-          </span>
+        <div class="flex items-center gap-2 sm:gap-3 ml-auto shrink-0 flex-wrap">
+          <span id="badge-budget-diff" class="inline-flex items-center gap-0.5 px-2 py-0.2 rounded-full text-[10px] font-black bg-sky-100 text-sky-800 border border-sky-200 shadow-2xs"></span>
 
-          <!-- 予算プログレスバー -->
-          <div class="w-20 sm:w-28 bg-slate-200/80 h-2 sm:h-2.5 rounded-full overflow-hidden shrink-0 shadow-inner">
+          <div class="w-16 sm:w-20 bg-slate-200/80 h-1.5 rounded-full overflow-hidden shrink-0 shadow-inner">
             <div id="budget-progress-bar" class="h-full bg-gradient-to-r from-teal-400 to-lime-400 rounded-full transition-all duration-500" style="width: 90%;"></div>
           </div>
 
-          <!-- 金額内訳 -->
-          <div class="flex items-center gap-1.5 font-bold text-slate-800 bg-white/90 px-2.5 py-0.5 rounded-xl border border-sky-200/80 shadow-2xs text-[11px] sm:text-xs" title="一般的なスーパー相場に基づくおかず食材費の目安です">
+          <div class="flex items-center gap-1 font-bold text-slate-800 bg-white/90 px-2 py-0.2 rounded-lg border border-sky-200/80 shadow-2xs text-[11px]">
             <span>推定: <strong id="badge-total-cost" class="text-teal-700 font-black">¥4,450</strong></span>
             <span class="text-slate-300">/</span>
             <span class="text-slate-500">目標 <span id="badge-target-cost" class="font-bold">¥4,500</span></span>
-            <span class="text-[9px] text-slate-400 font-normal hidden md:inline">※おかず目安</span>
           </div>
         </div>
 
@@ -300,53 +264,48 @@
     </div>
   </header>
 
-  <!-- ==================== ナビゲーションタブ（上部固定・常時片手操作可能・高さ約44px） ==================== -->
-  <nav id="main-tab-nav" class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b-2 border-sky-100 shadow-xs py-1.5 sm:py-2">
+  <!-- ==================== ナビゲーションタブ（上部固定・常時片手操作可能） ==================== -->
+  <nav id="main-tab-nav" class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-sky-100 shadow-xs py-1">
     <div class="max-w-6xl mx-auto px-2 sm:px-6">
       <div class="grid grid-cols-3 gap-1 sm:flex sm:gap-2">
-        <button data-tab-target="weekly" class="tab-btn active flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-4 text-white font-black rounded-2xl bg-gradient-to-r from-sky-500 to-teal-500 shadow-md shadow-sky-200/50 text-xs sm:text-sm transition-all">
-          <span class="text-sm sm:text-base">📅</span>
-          <span><span class="hidden sm:inline">1週間の</span>献立</span>
+        <button data-tab-target="weekly" class="tab-btn active flex-1 flex items-center justify-center gap-1 sm:gap-2 py-1.5 px-1 sm:px-4 text-white font-black rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 shadow-2xs text-xs sm:text-sm transition-all">
+          <span class="text-sm">📅</span>
+          <span>1週間の献立</span>
         </button>
-        <button data-tab-target="shopping" class="tab-btn flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-4 text-slate-700 hover:text-sky-700 hover:bg-sky-50 font-bold rounded-2xl text-xs sm:text-sm transition-all">
-          <span class="text-sm sm:text-base">🛒</span>
-          <span>買い物<span class="hidden sm:inline">リスト</span></span>
+        <button data-tab-target="shopping" class="tab-btn flex-1 flex items-center justify-center gap-1 sm:gap-2 py-1.5 px-1 sm:px-4 text-slate-700 hover:text-sky-700 hover:bg-sky-50 font-bold rounded-xl text-xs sm:text-sm transition-all">
+          <span class="text-sm">🛒</span>
+          <span>買い物リスト</span>
         </button>
-        <button data-tab-target="recipes" class="tab-btn flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-4 text-slate-700 hover:text-sky-700 hover:bg-sky-50 font-bold rounded-2xl text-xs sm:text-sm transition-all">
-          <span class="text-sm sm:text-base">📖</span>
-          <span>レシピ<span class="hidden sm:inline">一覧</span></span>
+        <button data-tab-target="recipes" class="tab-btn flex-1 flex items-center justify-center gap-1 sm:gap-2 py-1.5 px-1 sm:px-4 text-slate-700 hover:text-sky-700 hover:bg-sky-50 font-bold rounded-xl text-xs sm:text-sm transition-all">
+          <span class="text-sm">📖</span>
+          <span>レシピ一覧</span>
         </button>
       </div>
     </div>
   </nav>
 
-  <!-- ==================== メインコンテンツ ==================== -->
-  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6">
+  <!-- ==================== メインコンテンツ（無駄な余白を削減し、献立が即座に視界に入る設計） ==================== -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-2.5 sm:px-6 py-2 sm:py-3">
 
     <!-- ================= 1. 1週間の献立タブ ================= -->
     <section id="tab-weekly" class="tab-content">
-      <div class="mb-4 flex items-center justify-between flex-wrap gap-2">
-        <div class="flex-1 min-w-[240px]">
-          <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <span>📅 月曜日〜日曜日の節約献立</span>
-            <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">🎯 予算追従＆お肉連続防止中</span>
+      <div class="mb-2 sm:mb-2.5 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <h2 class="text-sm sm:text-base font-black text-slate-900 flex items-center gap-1.5">
+            <span>📅 1週間の献立</span>
           </h2>
-          <p class="text-xs text-slate-500 mt-0.5">
-            設定した予算に最も近づくよう、お肉（鶏・豚・挽肉・魚）や和洋中をバランスよく配置しました。料理をクリックで作り方確認、🔄で別メニューに変更できます。
-          </p>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold hidden sm:inline">🎯 予算追従＆お肉連続防止中</span>
         </div>
 
         <!-- 印刷ボタン -->
-        <div class="flex items-center gap-2 shrink-0">
-          <button id="btn-print-weekly" onclick="triggerPrintWeeklyPlan()" class="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-black text-slate-800 bg-white hover:bg-slate-50 transition-all border-2 border-slate-200 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer" title="冷蔵庫に貼れるA4用紙1枚で印刷・PDF保存">
-            <span class="text-sm">🖨️</span>
-            <span>冷蔵庫用に印刷（PDF）</span>
-          </button>
-        </div>
+        <button id="btn-print-weekly" onclick="triggerPrintWeeklyPlan()" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold text-slate-700 bg-white hover:bg-slate-50 transition-all border border-slate-200 shadow-2xs active:scale-95 cursor-pointer shrink-0" title="冷蔵庫に貼れるA4用紙1枚で印刷・PDF保存">
+          <span class="text-xs">🖨️</span>
+          <span>冷蔵庫用に印刷 (PDF)</span>
+        </button>
       </div>
 
-      <!-- 7日分の献立カードグリッド -->
-      <div id="weekly-plan-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <!-- 7日分の献立カードグリッド（即座に最上部に表示される） -->
+      <div id="weekly-plan-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <!-- JSで動的レンダリング -->
       </div>
 
@@ -1149,14 +1108,14 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20260930_1300"></script>
-  <script src="app.js?v=20260930_1300"></script>
+  <script src="recipes.js?v=20260930_1315"></script>
+  <script src="app.js?v=20260930_1315"></script>
 
   <!-- PWA Service Worker 登録 ＆ 自動アップデート検知 -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20260930_1300')
+        navigator.serviceWorker.register('./sw.js?v=20260930_1315')
           .then((reg) => {
             // 起動時にサーバーへ即座に更新チェック
             reg.update();

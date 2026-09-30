@@ -2363,12 +2363,6 @@ function renderDishRow(dayId, category, recipe, label) {
     cardBorder = 'border-slate-100 hover:border-lime-200 bg-slate-50/60';
   }
 
-  // 主菜の実写料理写真サムネイル
-  const mainImageSrc = (category === 'main') ? (recipe.imagePath || (typeof getMainDishImage === 'function' ? getMainDishImage(recipe) : '')) : '';
-  const mainImageHtml = mainImageSrc ? `
-    <img src="${mainImageSrc}" alt="${cleanTitle}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover shrink-0 shadow-2xs border border-amber-200/90 group-hover:scale-105 transition-transform" loading="lazy">
-  ` : '';
-
   // 代替メニューが必要な子供がいるかチェック
   let altMenus = [];
   if (state.childrenCount > 0) {
@@ -2404,26 +2398,23 @@ function renderDishRow(dayId, category, recipe, label) {
   return `
     <div class="flex flex-col p-2 sm:p-2.5 rounded-xl border ${cardBorder} transition-all group shadow-2xs w-full min-w-0 overflow-hidden">
       <div class="flex items-start justify-between gap-1.5 sm:gap-2 w-full min-w-0">
-        <!-- 料理名・バッジ・価格・写真（クリックで作り方モーダル） -->
-        <div class="flex items-start gap-2 sm:gap-2.5 flex-1 min-w-0 cursor-pointer overflow-hidden" onclick="openDetailModal('${recipe.id}')">
-          ${mainImageHtml}
-          <div class="flex-1 min-w-0">
-            <!-- 上段バッジ ＆ 価格 -->
-            <div class="flex items-center justify-between gap-1 mb-1">
-              <div class="flex items-center gap-1 sm:gap-1.5 flex-wrap min-w-0">
-                <span class="text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-md shadow-2xs shrink-0 ${categoryBadgeClass}">${label}</span>
-                ${cuisineBadge}
-                <span class="text-[10px] text-slate-500 font-bold shrink-0">⏱️${recipe.time}</span>
-              </div>
-              <span class="text-[10px] sm:text-xs font-black text-teal-700 bg-teal-50 border border-teal-200/80 px-1.5 py-0.2 rounded-md shadow-2xs shrink-0 whitespace-nowrap">
-                ¥${recipe.approxCostPerPerson * state.servings}
-              </span>
+        <!-- 料理名・バッジ・価格（クリックで作り方モーダル） -->
+        <div class="flex-1 min-w-0 cursor-pointer overflow-hidden" onclick="openDetailModal('${recipe.id}')">
+          <!-- 上段バッジ ＆ 価格 -->
+          <div class="flex items-center justify-between gap-1 mb-1">
+            <div class="flex items-center gap-1 sm:gap-1.5 flex-wrap min-w-0">
+              <span class="text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-md shadow-2xs shrink-0 ${categoryBadgeClass}">${label}</span>
+              ${cuisineBadge}
+              <span class="text-[10px] text-slate-500 font-bold shrink-0">⏱️${recipe.time}</span>
             </div>
+            <span class="text-[10px] sm:text-xs font-black text-teal-700 bg-teal-50 border border-teal-200/80 px-1.5 py-0.2 rounded-md shadow-2xs shrink-0 whitespace-nowrap">
+              ¥${recipe.approxCostPerPerson * state.servings}
+            </span>
+          </div>
 
-            <!-- 料理名（枠内で絶対に溢れず自然に折り返す） -->
-            <div class="text-xs sm:text-sm font-black text-slate-800 group-hover:text-teal-700 transition-colors leading-snug break-words break-all pr-0.5 sm:pr-1">
-              ${cleanTitle}
-            </div>
+          <!-- 料理名（枠内で絶対に溢れず自然に折り返す） -->
+          <div class="text-xs sm:text-sm font-black text-slate-800 group-hover:text-teal-700 transition-colors leading-snug break-words break-all pr-0.5 sm:pr-1">
+            ${cleanTitle}
           </div>
         </div>
 
