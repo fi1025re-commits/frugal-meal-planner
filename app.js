@@ -21,7 +21,7 @@ const state = {
   selectedCategory: 'all', // 'all' | 'main' | 'side' | 'soup'
   selectedCuisine: 'all', // 'all' | 'japanese' | 'western' | 'chinese'
   selectedDayFilter: 'all', // 'all' | 'mon' | 'tue' ...
-  recipeBookMode: 'weekly', // 'weekly' | 'all'
+  recipeBookMode: 'all', // 'weekly' | 'all'
   detailRecipe: null,
   changeTarget: null, // { dayId: 'mon', category: 'main' }
   shoppingDays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
@@ -3387,9 +3387,86 @@ function setRecipeDayFilter(dayId) {
 }
 window.setRecipeDayFilter = setRecipeDayFilter;
 
+
+function setRecipeSearchQuery(value) {
+  state.searchQuery = (value || '').trim().toLowerCase();
+  state.recipeBookMode = 'all';
+  state.showFavoritesOnly = false;
+  state.showBlacklistedOnly = false;
+  renderRecipeBook();
+}
+window.setRecipeSearchQuery = setRecipeSearchQuery;
+
+function setRecipeCategoryFilter(category) {
+  state.selectedCategory = category || 'all';
+  state.recipeBookMode = 'all';
+  state.showFavoritesOnly = false;
+  state.showBlacklistedOnly = false;
+  renderRecipeBook();
+}
+window.setRecipeCategoryFilter = setRecipeCategoryFilter;
+
+function getRecipeCardImage(recipe) {
+  const title = getCleanTitle(recipe);
+  const rules = [
+    [/ハンバーグ/, 'real_hamburg.webp'],
+    [/チキン南蛮|南蛮/, 'real_chicken_nanban.webp'],
+    [/唐揚げ|から揚げ|からあげ/, 'real_karaage.webp'],
+    [/コロッケ/, 'real_croquette.webp'],
+    [/カレー/, 'real_curry.webp'],
+    [/シチュー/, 'real_stew.webp'],
+    [/餃子|ぎょうざ/, 'real_gyoza.webp'],
+    [/麻婆|マーボー/, 'real_mapo_tofu.webp'],
+    [/肉じゃが/, 'real_nikujaga.webp'],
+    [/お好み焼/, 'real_okonomiyaki.webp'],
+    [/生姜焼|しょうが焼/, 'real_pork_ginger.webp'],
+    [/鮭|サーモン/, 'real_salmon.webp'],
+    [/酢豚/, 'real_sweet_sour_pork.webp'],
+    [/焼き魚|塩焼き|さば|サバ|ぶり|鯖/, 'real_grilled_fish.webp']
+  ];
+  const match = rules.find(([pattern]) => pattern.test(title));
+  return match ? 'images/recipes/' + match[1] : '';
+}
+
+function getRecipeFallbackEmoji(recipe) {
+  if (recipe.category === 'soup') return '🥣';
+  if (recipe.category === 'side') return '🥗';
+  if (recipe.proteinType === 'fish') return '🐟';
+  if (recipe.proteinType === 'chicken') return '🍗';
+  if (recipe.proteinType === 'pork') return '🥩';
+  if (recipe.proteinType === 'mince') return '🍳';
+  return '🍽️';
+}
+
+function syncRecipeLibraryControls() {
+  const all = document.getElementById('btn-recipe-mode-all');
+  const weekly = document.getElementById('btn-recipe-mode-weekly');
+  if (all) all.className = 'recipe-mode-btn' + (state.recipeBookMode === 'all' ? ' is-active' : '');
+  if (weekly) weekly.className = 'recipe-mode-btn' + (state.recipeBookMode === 'weekly' ? ' is-active' : '');
+
+  document.querySelectorAll('[data-recipe-category]').forEach(btn => {
+    const category = btn.getAttribute('data-recipe-category');
+    btn.className = 'recipe-chip' + (category === state.selectedCategory ? ' is-active' : '');
+  });
+
+  const searchInput = document.getElementById('recipe-search-input');
+  if (searchInput && document.activeElement !== searchInput) {
+    searchInput.value = state.searchQuery || '';
+  }
+}
+
 function renderRecipeBook() {
   const container = document.getElementById('recipe-book-container');
   if (!container) return;
+
+  syncRecipeLibraryControls();
+  const dayBar = document.getElementById('recipe-day-buttons-bar');
+  const allOptionsPanel = document.getElementById('recipe-all-options');
+  if (dayBar) dayBar.classList.toggle('hidden', state.recipeBookMode === 'all');
+  if (allOptionsPanel) {
+    allOptionsPanel.classList.toggle('hidden', state.recipeBookMode !== 'all');
+    allOptionsPanel.classList.toggle('flex', state.recipeBookMode === 'all');
+  }
 
   // 表示切替ボタン（スワイプ vs 全表示）の見た目を同期
   const btnSwipe = document.getElementById('btn-recipe-view-swipe');
@@ -3428,118 +3505,90 @@ function renderRecipeBook() {
   let html = '';
 
   if (state.recipeBookMode === 'all') {
-    // 全レシピ一覧表示
-    let recipesToDisplay = RECIPES_DATA;
+    let recipesToDisplay = RECIPES_DATA.slice();
 
-    // 除外（NG）フィルター
     if (state.showBlacklistedOnly) {
       recipesToDisplay = RECIPES_DATA.filter(r => state.blacklistedRecipeIds.includes(r.id));
-      if (recipesToDisplay.length === 0) {
-        container.innerHTML = `
-          <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200 p-8">
-            <span class="text-4xl block mb-2">🚫</span>
-            <h4 class="font-bold text-slate-700 text-base mb-1">除外（NG）中のレシピはありません</h4>
-            <p class="text-xs text-slate-500">家族の好みに合わないレシピの「🚫」ボタンを押すと除外され、ここに一覧表示されます。<br>除外されたレシピは献立の自動提案から完全に排除されます。</p>
-          </div>
-        `;
-        return;
-      }
     } else if (state.showFavoritesOnly) {
-      // お気に入りフィルター（除外中のものは出さない）
       recipesToDisplay = RECIPES_DATA.filter(r => state.favoriteRecipeIds.includes(r.id) && !state.blacklistedRecipeIds.includes(r.id));
-      if (recipesToDisplay.length === 0) {
-        container.innerHTML = `
-          <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200 p-8">
-            <span class="text-4xl block mb-2">⭐</span>
-            <h4 class="font-bold text-slate-700 text-base mb-1">お気に入りレシピがまだありません</h4>
-            <p class="text-xs text-slate-500">気になるレシピの「★」マークを押すとここに追加され、献立に定期的に登場するようになります。</p>
-          </div>
-        `;
-        return;
-      }
     } else {
-      // 通常の一覧表示（除外レシピは隠す）
       recipesToDisplay = RECIPES_DATA.filter(r => !state.blacklistedRecipeIds.includes(r.id));
     }
 
-    // 検索クエリ
-    if (state.searchQuery) {
-      recipesToDisplay = recipesToDisplay.filter(r => 
-        r.title.toLowerCase().includes(state.searchQuery) ||
-        r.description.toLowerCase().includes(state.searchQuery) ||
-        (r.tags && r.tags.some(t => t.toLowerCase().includes(state.searchQuery)))
-      );
+    if (state.selectedCategory && state.selectedCategory !== 'all') {
+      recipesToDisplay = recipesToDisplay.filter(r => r.category === state.selectedCategory);
     }
 
-    recipesToDisplay.forEach(recipe => {
-      const cleanTitle = getCleanTitle(recipe);
-      const extBadge = getExternalBadge(recipe);
-      const cost5p = recipe.approxCostPerPerson * state.servings;
-      const proteinLabel = recipe.proteinType ? PROTEIN_ICONS[recipe.proteinType] : null;
-      const isFav = state.favoriteRecipeIds.includes(recipe.id);
-      const isBlacklisted = state.blacklistedRecipeIds.includes(recipe.id);
+    if (state.searchQuery) {
+      const q = state.searchQuery;
+      recipesToDisplay = recipesToDisplay.filter(r => {
+        const haystack = [
+          r.title,
+          r.description,
+          ...(r.tags || []),
+          ...(r.ingredients || []).map(i => i.name)
+        ].join(' ').toLowerCase();
+        return haystack.includes(q);
+      });
+    }
 
-      html += `
-        <div class="bg-white/95 rounded-3xl border-2 ${isBlacklisted ? 'border-rose-300 bg-rose-50/30' : (recipe.url ? 'border-sky-200 bg-sky-50/20' : 'border-sky-100/90')} shadow-sm hover:shadow-md transition-all p-5 flex flex-col justify-between cursor-pointer hover:border-sky-300 group relative"
-             onclick="openDetailModal('${recipe.id}')">
-          <div>
-            <div class="flex items-center justify-between mb-2.5 flex-wrap gap-1">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="text-xs font-black text-white px-2.5 py-0.5 rounded-full shadow-2xs ${categoryColors[recipe.category]}">
-                  ${categoryLabels[recipe.category]}
-                </span>
-                ${isBlacklisted ? `<span class="text-[10px] font-bold text-rose-700 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-full">🚫 献立除外中</span>` : ''}
-                ${recipe.isCustom ? `<span class="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">⭐ 登録</span>` : ''}
-                ${extBadge}
-                ${recipe.cuisine ? `<span class="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">${CUISINE_LABELS[recipe.cuisine]}</span>` : ''}
-                ${proteinLabel ? `<span class="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">${proteinLabel}</span>` : ''}
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-slate-400 flex items-center gap-1 font-bold">
-                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                  ${recipe.time}
-                </span>
-                <button onclick="toggleFavorite('${recipe.id}', event)" class="p-1 rounded-lg transition-transform hover:scale-110 ${isFav ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400'}" title="お気に入り（定期登板）">
-                  <span class="text-lg leading-none">${isFav ? '★' : '☆'}</span>
-                </button>
-                <button onclick="toggleBlacklist('${recipe.id}', event)" class="p-1 rounded-lg transition-transform hover:scale-110 ${isBlacklisted ? 'text-rose-600 font-black' : 'text-slate-300 hover:text-rose-600'}" title="${isBlacklisted ? '除外を解除して献立候補に復帰' : 'このレシピを献立から除外（二度と出さない）'}">
-                  <span class="text-base leading-none">🚫</span>
-                </button>
-                ${recipe.isCustom ? `
-                  <button onclick="deleteCustomRecipe('${recipe.id}', event)" class="p-1 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-all" title="このレシピを削除">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                  </button>
-                ` : ''}
-              </div>
-            </div>
-            <h4 class="font-black text-slate-800 group-hover:text-teal-700 transition-colors text-base mb-2 leading-snug break-words">
-              ${cleanTitle}
-            </h4>
-            <p class="text-xs text-slate-500 line-clamp-2 mb-3 leading-relaxed">
-              ${recipe.description}
-            </p>
-            <div class="flex flex-wrap gap-1.5 mb-3">
-              ${recipe.tags.map(t => `<span class="text-[10px] bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-bold">#${t}</span>`).join('')}
-            </div>
-          </div>
-  
-          <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span class="text-slate-500 font-bold">${state.servings}人分目安: <strong class="text-teal-700 text-sm font-black">約¥${cost5p}</strong></span>
-            ${isBlacklisted ? `
-              <button onclick="toggleBlacklist('${recipe.id}', event)" class="px-3 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-xl transition-all text-xs flex items-center gap-1 shadow-2xs">
-                <span>除外を解除</span>
-                <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
-              </button>
-            ` : `
-              <span class="text-teal-600 font-black flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                ${recipe.url ? '作り方・動画を見る' : '作り方を見る'}
-                <i data-lucide="${recipe.url ? 'external-link' : 'chevron-right'}" class="w-3.5 h-3.5"></i>
-              </span>
-            `}
-          </div>
+    syncRecipeLibraryControls();
+
+    if (recipesToDisplay.length === 0) {
+      container.innerHTML = `
+        <div class="col-span-full bg-white rounded-3xl border border-[#ece4da] p-8 text-center">
+          <div class="text-4xl mb-3">🔎</div>
+          <h4 class="font-black text-[#443d36] text-base">条件に合うレシピが見つかりません</h4>
+          <p class="text-xs text-[#81766b] mt-1">検索語やカテゴリーを変えてみてください。</p>
+          <button type="button" onclick="state.selectedCategory='all';state.searchQuery='';document.getElementById('recipe-search-input').value='';renderRecipeBook()" class="mt-4 px-4 py-2 rounded-full bg-[#5f7458] text-white text-xs font-black">条件をリセット</button>
         </div>
       `;
-    });
+      safeCreateIcons();
+      return;
+    }
+
+    html = recipesToDisplay.map(recipe => {
+      const cleanTitle = getCleanTitle(recipe);
+      const cost = recipe.approxCostPerPerson * state.servings;
+      const isFav = state.favoriteRecipeIds.includes(recipe.id);
+      const isBlacklisted = state.blacklistedRecipeIds.includes(recipe.id);
+      const imagePath = getRecipeCardImage(recipe);
+      const categoryLabel = categoryLabels[recipe.category] || 'レシピ';
+      const imageHtml = imagePath
+        ? `<img src="${imagePath}" alt="${cleanTitle}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;recipe-card-fallback&quot;>${getRecipeFallbackEmoji(recipe)}</div>'">`
+        : `<div class="recipe-card-fallback">${getRecipeFallbackEmoji(recipe)}</div>`;
+
+      return `
+        <article class="recipe-card-refresh ${isBlacklisted ? 'opacity-70' : ''}" onclick="openDetailModal('${recipe.id}')">
+          <div class="recipe-card-media">
+            ${imageHtml}
+            <span class="recipe-card-badge">${categoryLabel}</span>
+            <button type="button" class="recipe-card-fav ${isFav ? 'text-amber-500' : 'text-[#a79d92]'}"
+                    onclick="toggleFavorite('${recipe.id}', event)" aria-label="お気に入り">
+              ${isFav ? '★' : '☆'}
+            </button>
+          </div>
+          <div class="recipe-card-body">
+            <h3 class="recipe-card-title">${cleanTitle}</h3>
+            <div class="recipe-meta-row">
+              <span>⏱ ${recipe.time}</span>
+              <span>・</span>
+              <span class="recipe-meta-price">${state.servings}人分 約¥${cost.toLocaleString()}</span>
+            </div>
+            <p class="recipe-card-desc">${recipe.description}</p>
+            <div class="recipe-tag-row">
+              ${(recipe.tags || []).slice(0,3).map(t => `<span class="recipe-tag-soft">#${t}</span>`).join('')}
+            </div>
+            <div class="recipe-card-footer">
+              <button type="button" onclick="toggleBlacklist('${recipe.id}', event)" class="text-[10px] font-bold ${isBlacklisted ? 'text-rose-700' : 'text-[#998f85]'}">
+                ${isBlacklisted ? '除外を解除' : '🚫 献立から除外'}
+              </button>
+              <span class="recipe-card-link">レシピを見る ›</span>
+            </div>
+          </div>
+        </article>
+      `;
+    }).join('');
   } else {
     // 今週の献立（曜日別）表示：曜日ボタン内に主菜のみ表記 ➔ タップで3品ボタン展開 ➔ レシピ表示
     if (!state.weeklyPlan) {
