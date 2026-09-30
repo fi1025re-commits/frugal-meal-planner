@@ -70,16 +70,22 @@ const STORAGE_KEY_RECIPE_VIEW_MODE = 'frugal_recipe_view_mode_v1';
 
 // 安全なアイコン描画ヘルパー
 function safeCreateIcons() {
-  if (typeof lucide !== 'undefined' && lucide && typeof lucide.createIcons === 'function') {
+  if (typeof lucide === 'undefined' || !lucide || typeof lucide.createIcons !== 'function') return;
+
+  const run = () => {
     try {
-      const root = document.getElementById(`tab-${state.activeTab}`) || document.body;
-      lucide.createIcons({ attrs: { 'stroke-width': 2 }, nameAttr: 'data-lucide', root });
+      lucide.createIcons({ attrs: { 'stroke-width': 2 } });
     } catch (e) {
-      try { lucide.createIcons(); } catch (_) {}
+      console.warn('Lucide icon error:', e);
     }
+  };
+
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(run, { timeout: 500 });
+  } else {
+    setTimeout(run, 0);
   }
 }
-
 // 主菜のタンパク質・主要食材の視覚的分類（一目で肉・魚・豆腐がわかるバッジ）
 const PROTEIN_CONFIG = {
   fish: { icon: '🐟', label: 'お魚料理', badgeBg: 'bg-sky-100 text-sky-900 border-sky-300', dot: 'bg-sky-500' },
@@ -696,6 +702,7 @@ function generateRandomWeeklyPlan(showNotify = true) {
 
   state.renderedTabs.weekly = false;
   state.renderedTabs.shopping = false;
+  state.renderedTabs.recipes = false;
   render(true);
 
   if (state.familySyncCode && !state.isJoiningFromUrl) {
@@ -766,10 +773,11 @@ function updateCoreFlowSummary() {
 
   const dislikeDisplay = document.getElementById('core-dislike-display');
   const total = getTotalDislikeCount();
+  const childLabel = state.childrenCount === 0 ? '子ども設定なし' : `子ども${state.childrenCount}人`;
   if (dislikeDisplay) {
     dislikeDisplay.textContent = total > 0
-      ? `${total}件を献立から除外中`
-      : 'まだ設定していません';
+      ? `${childLabel}・${total}件を除外中`
+      : (state.childrenCount === 0 ? '子ども設定なし' : `${childLabel}・未設定`);
   }
 
   const shoppingDisplay = document.getElementById('core-shopping-display');
@@ -2263,6 +2271,7 @@ window.changeServingsByStep = function(delta) {
     // 人数連動で予算も自然に更新（1人あたり約1,500円/週）
     state.targetBudget = Math.round(state.servings * 1500);
     saveBudget();
+    updateCoreFlowSummary();
     generateRandomWeeklyPlan(true);
   }
 };
