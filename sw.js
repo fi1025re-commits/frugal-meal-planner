@@ -1,5 +1,5 @@
 // Service Worker for 食費節約献立＆買い物リスト作成 (PWA)
-const CACHE_NAME = 'setsuyaku-recipe-v4';
+const CACHE_NAME = 'setsuyaku-recipe-v5';
 
 // オフライン動作用に初期キャッシュする静的アセット
 const PRECACHE_ASSETS = [
@@ -22,7 +22,11 @@ const PRECACHE_ASSETS = [
   './images/recipes/real_pork_ginger.webp',
   './images/recipes/real_sweet_sour_pork.webp',
   './images/recipes/real_mapo_tofu.webp',
-  './images/recipes/real_okonomiyaki.webp'
+  './images/recipes/real_okonomiyaki.webp',
+  './images/recipes/real_curry.webp',
+  './images/recipes/real_stew.webp',
+  './images/recipes/real_nikujaga.webp',
+  './images/recipes/real_croquette.webp'
 ];
 
 // インストール時: コアアセットをキャッシュ

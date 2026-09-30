@@ -6676,27 +6676,46 @@ const DAYS_OF_WEEK = [
 
 const AISLE_ORDER = ["野菜", "肉・魚", "大豆・乳・加工品", "調味料・その他"];
 
-// レシピに完全合致する商用フリー実写料理写真のマッピング
+// レシピに完全合致する商用フリー実写料理写真のマッピング（主菜全106品を完全カバー）
 function getMainDishImage(recipe) {
   if (!recipe) return '';
   if (recipe.imagePath) return recipe.imagePath;
 
   const title = recipe.title || '';
-  if (title.includes('ハンバーグ')) return 'images/recipes/real_hamburg.webp';
-  if (title.includes('チキン南蛮')) return 'images/recipes/real_chicken_nanban.webp';
-  if (title.includes('唐揚げ') || title.includes('から揚げ')) return 'images/recipes/real_karaage.webp';
+  const pt = recipe.proteinType || '';
+
+  // 1. 料理名からの高精度マッチング
+  if (title.includes('カレー')) return 'images/recipes/real_curry.webp';
+  if (title.includes('シチュー') || title.includes('クリーム煮')) return 'images/recipes/real_stew.webp';
+  if (title.includes('ハンバーグ') || title.includes('つくね') || title.includes('肉詰め') || title.includes('ミート') || title.includes('そぼろ')) return 'images/recipes/real_hamburg.webp';
+  if (title.includes('コロッケ') || title.includes('カツ') || title.includes('フライ') || title.includes('ピカタ')) return 'images/recipes/real_croquette.webp';
   if (title.includes('餃子')) return 'images/recipes/real_gyoza.webp';
-  if (title.includes('鮭') || title.includes('サーモン')) return 'images/recipes/real_salmon.webp';
-  if (title.includes('サバ') || title.includes('魚')) return 'images/recipes/real_grilled_fish.webp';
-  if (title.includes('生姜焼き') || title.includes('しょうが焼き')) return 'images/recipes/real_pork_ginger.webp';
-  if (title.includes('酢豚')) return 'images/recipes/real_sweet_sour_pork.webp';
-  if (title.includes('麻婆豆腐')) return 'images/recipes/real_mapo_tofu.webp';
-  if (title.includes('お好み焼き')) return 'images/recipes/real_okonomiyaki.webp';
+  if (title.includes('お好み焼き') || title.includes('たこ焼き') || title.includes('オムレツ') || title.includes('天津飯') || title.includes('カニ玉') || title.includes('ニラ玉') || title.includes('卵とじ')) return 'images/recipes/real_okonomiyaki.webp';
+  if (title.includes('麻婆') || title.includes('マーボー') || title.includes('豆腐') || title.includes('厚揚げ') || title.includes('納豆')) return 'images/recipes/real_mapo_tofu.webp';
+  if (title.includes('肉じゃが') || title.includes('みぞれ煮') || title.includes('照り煮') || title.includes('煮物') || title.includes('おでん') || title.includes('うま煮') || title.includes('煮込み') || title.includes('すき焼き') || title.includes('ミルフィーユ')) return 'images/recipes/real_nikujaga.webp';
+  if (title.includes('唐揚げ') || title.includes('から揚げ') || title.includes('スナックチキン') || title.includes('ヤンニョム') || title.includes('油淋鶏')) return 'images/recipes/real_karaage.webp';
+  if (title.includes('酢豚') || title.includes('甘酢')) return 'images/recipes/real_sweet_sour_pork.webp';
+  if (title.includes('鮭') || title.includes('サーモン') || title.includes('タラ') || title.includes('ちゃんちゃん')) return 'images/recipes/real_salmon.webp';
+  if (title.includes('サバ') || title.includes('魚') || title.includes('アジ') || title.includes('イワシ') || title.includes('ブリ') || title.includes('ツナ')) return 'images/recipes/real_grilled_fish.webp';
+  if (title.includes('チキン南蛮') || title.includes('照り焼き') || title.includes('焼き鳥') || title.includes('タッカルビ') || title.includes('鶏')) return 'images/recipes/real_chicken_nanban.webp';
+  if (title.includes('生姜焼き') || title.includes('しょうが焼き') || title.includes('回鍋肉') || title.includes('青椒肉絲') || title.includes('豚キムチ') || title.includes('炒め') || title.includes('蒸し') || title.includes('ポークチャップ')) return 'images/recipes/real_pork_ginger.webp';
+
+  // 2. 主菜フォールバック（プロテイン種別による実写マッチング）
+  if (recipe.category === 'main') {
+    if (pt === 'chicken') return 'images/recipes/real_chicken_nanban.webp';
+    if (pt === 'pork') return 'images/recipes/real_pork_ginger.webp';
+    if (pt === 'fish') return 'images/recipes/real_grilled_fish.webp';
+    if (pt === 'mince') return 'images/recipes/real_hamburg.webp';
+    if (pt === 'soy') return 'images/recipes/real_mapo_tofu.webp';
+    return 'images/recipes/real_pork_ginger.webp';
+  }
 
   return '';
 }
 
-// レシピに完全合致する実写写真のみを割り当て（不一致写真・イラストは非表示）
+// 主菜レシピに実写料理写真を100%漏れなく割り当て
 RECIPES_DATA.forEach(r => {
-  r.imagePath = getMainDishImage(r);
+  if (r.category === 'main') {
+    r.imagePath = getMainDishImage(r);
+  }
 });

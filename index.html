@@ -484,40 +484,36 @@
 
     <!-- ================= 3. レシピ一覧（今週の献立 & 全レシピ）タブ ================= -->
     <section id="tab-recipes" class="tab-content hidden">
-      <div class="mb-6 flex flex-col gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-        
-        <!-- 上段：表示モード切替 -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <span>📖 レシピ集・作り方</span>
-          </h2>
-
-          <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-xl shrink-0 flex-wrap">
-            <button id="btn-recipe-mode-weekly" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow-2xs transition-all">今週の献立（曜日別）</button>
-            <button id="btn-recipe-mode-all" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all">全レシピ一覧（外部レシピ含む）</button>
-            <button id="btn-recipe-filter-fav" class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-amber-700 hover:bg-amber-100 bg-amber-50 border border-amber-200 transition-all flex items-center gap-1">
+      <!-- 最上段：モード切替バー（高さを最小化し、曜日ボタンがスクロールなしで即座に表示される設計） -->
+      <div class="mb-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col gap-2.5">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <button id="btn-recipe-mode-weekly" class="px-3 py-1.5 rounded-xl text-xs font-black bg-emerald-600 text-white shadow-2xs transition-all">今週の献立（曜日別）</button>
+            <button id="btn-recipe-mode-all" class="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all">全レシピ一覧</button>
+            <button id="btn-recipe-filter-fav" class="px-2.5 py-1.5 rounded-xl text-xs font-bold text-amber-700 hover:bg-amber-100 bg-amber-50 border border-amber-200/80 transition-all flex items-center gap-1">
               <span>★</span>
               <span>お気に入り (<span id="fav-count-badge">0</span>)</span>
             </button>
-            <button id="btn-recipe-filter-ng" class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-rose-700 hover:bg-rose-100 bg-rose-50 border border-rose-200 transition-all flex items-center gap-1">
+            <button id="btn-recipe-filter-ng" class="px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-700 hover:bg-rose-100 bg-rose-50 border border-rose-200/80 transition-all flex items-center gap-1">
               <span>🚫</span>
-              <span>除外リスト (<span id="ng-count-badge">0</span>)</span>
-            </button>
-            <button id="btn-open-custom-recipe" class="px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-800 hover:bg-emerald-200 bg-emerald-100 border border-emerald-300 transition-all flex items-center gap-1">
-              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-              <span>レシピ登録</span>
+              <span>除外 (<span id="ng-count-badge">0</span>)</span>
             </button>
           </div>
+
+          <button id="btn-open-custom-recipe" class="px-2.5 py-1.5 rounded-xl text-xs font-bold text-emerald-800 hover:bg-emerald-200 bg-emerald-100 border border-emerald-300 transition-all flex items-center gap-1 ml-auto">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>レシピ登録</span>
+          </button>
         </div>
 
-        <!-- 旬・季節＆重複防止ステータスバー -->
-        <div class="flex items-center justify-between gap-2 flex-wrap text-xs bg-emerald-50/70 border border-emerald-200/60 p-2.5 rounded-xl text-emerald-950">
+        <!-- 全レシピ一覧時のみ表示する詳細オプション（今週の献立時は非表示にして曜日ボタンを最上部へ直結） -->
+        <div id="recipe-all-options" class="hidden flex items-center justify-between gap-2 flex-wrap text-xs bg-emerald-50/70 border border-emerald-200/60 p-2 rounded-xl text-emerald-950">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-bold flex items-center gap-1 text-emerald-900">
               <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-600"></i>
-              現在の季節・旬食材モード:
+              旬食材モード:
             </span>
-            <select id="season-select" class="bg-white border border-emerald-300 rounded-lg px-2.5 py-1 font-bold text-emerald-800 text-xs focus:ring-emerald-500 cursor-pointer">
+            <select id="season-select" class="bg-white border border-emerald-300 rounded-lg px-2 py-0.5 font-bold text-emerald-800 text-xs focus:ring-emerald-500 cursor-pointer">
               <option value="all">四季すべて（通年）</option>
               <option value="spring">🌸 春（新玉ねぎ・春キャベツ）</option>
               <option value="summer">🌻 夏（ナス・トマト・夏野菜）</option>
@@ -525,33 +521,22 @@
               <option value="winter">❄️ 冬（白菜・大根・あったか鍋）</option>
             </select>
           </div>
-          <div class="text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
+          <div class="text-[11px] font-semibold text-emerald-800 flex items-center gap-1">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>直近30日間の重複防止エンジン稼働中</span>
+            <span>重複防止エンジン稼働中</span>
           </div>
         </div>
 
-        <!-- 曜日切替フィルタ（「今週の献立」モード用: ドロップダウン化で省スペース） -->
-        <div id="recipe-day-filter-container" class="flex items-center gap-2 bg-slate-50 p-2 rounded-xl">
-          <span class="text-xs font-bold text-slate-600 flex items-center gap-1 shrink-0">
-            <span>📅</span>
-            <span>表示する曜日:</span>
-          </span>
-          <select id="recipe-day-select" class="bg-white border border-slate-300 rounded-lg px-3 py-1 font-bold text-slate-800 text-xs focus:ring-emerald-500 cursor-pointer shadow-2xs">
-            <option value="all">すべての曜日（月〜日）</option>
-            <option value="mon">月曜日の献立</option>
-            <option value="tue">火曜日の献立</option>
-            <option value="wed">水曜日の献立</option>
-            <option value="thu">木曜日の献立</option>
-            <option value="fri">金曜日の献立</option>
-            <option value="sat">土曜日の献立</option>
-            <option value="sun">日曜日の献立</option>
+        <!-- 曜日切替フィルタ（非表示：全曜日がボタンとして直下に常時展開されているため不要） -->
+        <div id="recipe-day-filter-container" class="hidden">
+          <select id="recipe-day-select" class="hidden">
+            <option value="all" selected>すべての曜日</option>
           </select>
         </div>
       </div>
 
-      <!-- レシピカードグリッド -->
-      <div id="recipe-book-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <!-- レシピカードグリッド（曜日ボタンが画面最上部に直ちに表示される） -->
+      <div id="recipe-book-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <!-- JSで動的レンダリング -->
       </div>
     </section>
@@ -1164,14 +1149,14 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20260930_1230"></script>
-  <script src="app.js?v=20260930_1230"></script>
+  <script src="recipes.js?v=20260930_1300"></script>
+  <script src="app.js?v=20260930_1300"></script>
 
   <!-- PWA Service Worker 登録 ＆ 自動アップデート検知 -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
+        navigator.serviceWorker.register('./sw.js?v=20260930_1300')
           .then((reg) => {
             // 起動時にサーバーへ即座に更新チェック
             reg.update();
