@@ -484,6 +484,21 @@
       .core-flow-index{display:none}
       .core-budget-quick{grid-template-columns:repeat(2,1fr)}
     }
+
+    /* ===== Copy reduction ===== */
+    .core-flow-wrap{padding-top:10px !important}
+    .core-flow-head{margin-bottom:7px !important}
+    .core-flow-head h2{font-size:15px !important}
+    .core-flow-head p{display:none !important}
+    .core-flow-card{min-height:112px !important;padding-top:12px !important}
+    .core-flow-copy small{display:none !important}
+    .core-flow-action{min-height:31px !important}
+    .weekly-focus-head p,.weekly-kicker{display:none !important}
+    @media(max-width:720px){
+      .core-flow-head{margin-bottom:6px !important}
+      .core-flow-card{min-height:0 !important}
+      .core-flow-action{min-width:72px !important}
+    }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col antialiased selection:bg-sky-200 selection:text-sky-900">
@@ -520,57 +535,6 @@
       </div>
     </div>
 
-    <div class="home-summary-wrap">
-      <div class="home-summary-card">
-        <div class="home-summary-main">
-          <div>
-            <span class="home-summary-label">今週の食費目安</span>
-            <div class="home-summary-price">
-              <strong id="badge-total-cost">¥4,450</strong>
-              <span>/ 目標 <span id="badge-target-cost">¥4,500</span></span>
-            </div>
-          </div>
-          <span id="badge-budget-diff" class="home-budget-badge"></span>
-        </div>
-
-        <div class="home-summary-progress">
-          <div id="budget-progress-bar"></div>
-        </div>
-
-        <details class="home-condition-details">
-          <summary>条件を変える</summary>
-          <div class="home-condition-panel">
-            <div class="home-condition-row">
-              <span class="home-condition-label">人数</span>
-              <div class="home-stepper">
-                <button type="button" onclick="changeServingsByStep(-1)">−</button>
-                <span id="servings-display">3人分</span>
-                <button type="button" onclick="changeServingsByStep(1)">＋</button>
-                <select id="servings-select" class="hidden">
-                  <option value="1">1人分</option><option value="2">2人分</option><option value="3" selected>3人分</option>
-                  <option value="4">4人分</option><option value="5">5人分</option><option value="6">6人分</option><option value="7">7人分</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="home-condition-row">
-              <span class="home-condition-label">週間予算</span>
-              <div class="home-budget-presets">
-                <button data-budget-preset="3500">¥3,500</button>
-                <button data-budget-preset="4500">¥4,500</button>
-                <button data-budget-preset="5500">¥5,500</button>
-              </div>
-              <div class="home-budget-input">
-                <span>¥</span>
-                <input type="number" id="target-budget-input" step="100" min="2000" max="30000" value="4500">
-              </div>
-            </div>
-
-            <div id="badge-preferences-summary" class="hidden"></div>
-          </div>
-        </details>
-      </div>
-    </div>
   </header>
 
 
@@ -578,10 +542,9 @@
   <section class="core-flow-wrap" aria-label="節約献立の3ステップ">
     <div class="core-flow-head">
       <div>
-        <span class="core-flow-kicker">AOBA METHOD</span>
-        <h2>家族に合う1週間を、3ステップで。</h2>
+        <span class="core-flow-kicker">3 STEP</span>
+        <h2>予算・苦手・買い物。</h2>
       </div>
-      <p>予算と子どもの苦手を先に決めると、献立と買い物リストまで自動でつながります。</p>
     </div>
 
     <div class="core-flow-grid">
@@ -589,33 +552,30 @@
         <div class="core-flow-index">01</div>
         <div class="core-flow-icon">¥</div>
         <div class="core-flow-copy">
-          <span class="core-flow-label">予算を決める</span>
+          <span class="core-flow-label">予算</span>
           <strong id="core-budget-display">¥4,500 / 週</strong>
-          <small>予算に近い組み合わせを自動で提案</small>
         </div>
-        <button type="button" onclick="openCoreBudgetPanel()" class="core-flow-action">予算を変更</button>
+        <button type="button" onclick="openCoreBudgetPanel()" class="core-flow-action">変更</button>
       </article>
 
       <article class="core-flow-card core-flow-dislike">
         <div class="core-flow-index">02</div>
         <div class="core-flow-icon">×</div>
         <div class="core-flow-copy">
-          <span class="core-flow-label">子どもの苦手食材</span>
+          <span class="core-flow-label">苦手食材</span>
           <strong id="core-dislike-display">まだ設定していません</strong>
-          <small>苦手な食材・味を献立候補から外します</small>
         </div>
-        <button type="button" onclick="openPreferencesModal(false)" class="core-flow-action core-flow-action-strong">苦手食材を設定</button>
+        <button type="button" onclick="openPreferencesModal(false)" class="core-flow-action core-flow-action-strong">設定</button>
       </article>
 
       <article class="core-flow-card core-flow-shopping">
         <div class="core-flow-index">03</div>
         <div class="core-flow-icon">✓</div>
         <div class="core-flow-copy">
-          <span class="core-flow-label">買い物リストへ</span>
+          <span class="core-flow-label">買い物</span>
           <strong id="core-shopping-display">1週間分を自動集計</strong>
-          <small>売り場別にまとめて、そのまま買い物へ</small>
         </div>
-        <button type="button" onclick="openCoreShoppingList()" class="core-flow-action">買い物リストを見る</button>
+        <button type="button" onclick="openCoreShoppingList()" class="core-flow-action">見る</button>
       </article>
     </div>
   </section>
@@ -650,15 +610,15 @@
       <div class="grid grid-cols-3 gap-1 sm:flex sm:gap-2">
         <button data-tab-target="weekly" class="tab-btn active flex-1 flex items-center justify-center gap-1 sm:gap-2 py-1.5 px-1 sm:px-4 text-white font-black rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 shadow-2xs text-xs sm:text-sm transition-all">
           <span class="text-sm">📅</span>
-          <span>1週間の献立</span>
+          <span>献立</span>
         </button>
         <button data-tab-target="shopping" class="tab-btn flex-1 flex items-center justify-center gap-1 sm:gap-2 py-1.5 px-1 sm:px-4 text-slate-700 hover:text-sky-700 hover:bg-sky-50 font-bold rounded-xl text-xs sm:text-sm transition-all">
           <span class="text-sm">🛒</span>
-          <span>買い物リスト</span>
+          <span>買い物</span>
         </button>
         <button data-tab-target="recipes" class="tab-btn flex-1 flex items-center justify-center gap-1 sm:gap-2 py-1.5 px-1 sm:px-4 text-slate-700 hover:text-sky-700 hover:bg-sky-50 font-bold rounded-xl text-xs sm:text-sm transition-all">
           <span class="text-sm">📖</span>
-          <span>レシピ一覧</span>
+          <span>レシピ</span>
         </button>
       </div>
     </div>
@@ -671,14 +631,14 @@
     <section id="tab-weekly" class="tab-content">
       <div class="weekly-focus-head">
         <div>
-          <span class="weekly-kicker">今週のごはん</span>
+          
           <h2>1週間の献立</h2>
-          <p>今日からそのまま使える献立です。</p>
+          
         </div>
 
         <button id="btn-regenerate-weekly" onclick="generateRandomWeeklyPlan(true)" class="weekly-primary-btn">
           <i data-lucide="sparkles" class="w-4 h-4"></i>
-          <span>献立を作り直す</span>
+          <span>作り直す</span>
         </button>
       </div>
 
@@ -1476,14 +1436,14 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20261001_0840"></script>
-  <script src="app.js?v=20261001_0840"></script>
+  <script src="recipes.js?v=20261001_0900"></script>
+  <script src="app.js?v=20261001_0900"></script>
 
   <!-- PWA Service Worker 登録 ＆ 自動アップデート検知 -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261001_0840', { updateViaCache: 'none' })
+        navigator.serviceWorker.register('./sw.js?v=20261001_0900', { updateViaCache: 'none' })
           .then((reg) => {
             // 起動時にサーバーへ即座に更新チェック
             reg.update();

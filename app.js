@@ -40,7 +40,10 @@ const state = {
   recipeViewMode: 'swipe', // 'swipe' (レシピ一覧の1日カード横スワイプ) | 'all' (7日分全表示)
   activeRecipeSwipeDayIndex: 0, // レシピスワイプ時の現在アクティブな曜日インデックス (0〜6)
   renderedTabs: { weekly: false, shopping: false, recipes: false },
-  recipeRenderLimit: 24
+  recipeRenderLimit: 24,
+  recipeSwipeStartX: 0,
+  recipeSwipeStartY: 0,
+  recipeSwipeTracking: false
 };
 
 // LocalStorage キー
@@ -2435,7 +2438,8 @@ function jumpToSwipeDay(index) {
   const slider = document.getElementById('weekly-swipe-slider');
   const targetCard = document.getElementById(`swipe-card-${DAYS_OF_WEEK[state.activeSwipeDayIndex].id}`);
   if (slider && targetCard) {
-    targetCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    const targetLeft = Math.max(0, targetCard.offsetLeft - (slider.clientWidth - targetCard.clientWidth) / 2);
+    slider.scrollTo({ left: targetLeft, behavior: 'smooth' });
   }
   updateSwipeNavIndicators();
 }
@@ -2630,7 +2634,7 @@ function renderWeeklyPlan() {
               <i data-lucide="chevron-right" class="w-4 h-4 sm:w-5 sm:h-5"></i>
             </button>
 
-            <div id="weekly-swipe-slider" class="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar py-0.5 px-0.5">
+            <div id="weekly-swipe-slider" class="flex gap-3 overflow-x-hidden scroll-smooth no-scrollbar py-0.5 px-0.5 touch-pan-y">
               ${cardHtmlList.join('')}
             </div>
           </div>
@@ -3887,33 +3891,48 @@ function renderRecipeBook() {
         </div>
       `;
 
-      // スワイプスクロール連動リスナー
+      // 誤操作防止：明確な横スワイプ（70px以上）の時だけ1日移動。
+      // 縦スクロールや軽い指ずれでは反応しない。
       setTimeout(() => {
         const slider = document.getElementById('recipe-swipe-slider');
         if (slider) {
-          let scrollTimeout;
-          slider.addEventListener('scroll', () => {
-            clearTimeout(scrollTimeout);
-            scrollTimeout = setTimeout(() => {
-              const sliderCenter = slider.scrollLeft + slider.offsetWidth / 2;
-              let closestIdx = 0;
-              let closestDist = Infinity;
-              DAYS_OF_WEEK.forEach((d, idx) => {
-                const card = document.getElementById(`recipe-swipe-card-${d.id}`);
-                if (card) {
-                  const cardCenter = card.offsetLeft + card.offsetWidth / 2;
-                  const dist = Math.abs(cardCenter - sliderCenter);
-                  if (dist < closestDist) {
-                    closestDist = dist;
-                    closestIdx = idx;
-                  }
-                }
-              });
-              if (state.activeRecipeSwipeDayIndex !== closestIdx) {
-                state.activeRecipeSwipeDayIndex = closestIdx;
-                updateRecipeSwipeNavIndicators();
-              }
-            }, 80);
+          const beginSwipe = (x, y) => {
+            state.recipeSwipeStartX = x;
+            state.recipeSwipeStartY = y;
+            state.recipeSwipeTracking = true;
+          };
+
+          const finishSwipe = (x, y) => {
+            if (!state.recipeSwipeTracking) return;
+            state.recipeSwipeTracking = false;
+
+            const dx = x - state.recipeSwipeStartX;
+            const dy = y - state.recipeSwipeStartY;
+            const horizontalEnough = Math.abs(dx) >= 70;
+            const clearlyHorizontal = Math.abs(dx) > Math.abs(dy) * 1.35;
+
+            if (!horizontalEnough || !clearlyHorizontal) return;
+            swipeRecipeDay(dx < 0 ? 1 : -1);
+          };
+
+          slider.addEventListener('touchstart', (e) => {
+            const t = e.touches && e.touches[0];
+            if (t) beginSwipe(t.clientX, t.clientY);
+          }, { passive: true });
+
+          slider.addEventListener('touchend', (e) => {
+            const t = e.changedTouches && e.changedTouches[0];
+            if (t) finishSwipe(t.clientX, t.clientY);
+          }, { passive: true });
+
+          slider.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'mouse') return;
+            beginSwipe(e.clientX, e.clientY);
+          }, { passive: true });
+
+          slider.addEventListener('pointerup', (e) => {
+            if (e.pointerType === 'mouse') return;
+            finishSwipe(e.clientX, e.clientY);
           }, { passive: true });
 
           jumpToRecipeSwipeDay(state.activeRecipeSwipeDayIndex);
