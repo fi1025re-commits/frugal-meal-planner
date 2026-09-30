@@ -403,31 +403,22 @@
           </div>
         </div>
 
-        <!-- 献立の曜日チェック連動バー -->
-        <div class="p-3 sm:p-3.5 rounded-xl bg-sky-50/90 border border-sky-200/80 text-[11px] text-slate-700 leading-relaxed flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
-          <div class="flex items-start gap-2">
+        <!-- 献立連動ステータス＆目安案内（コンパクト1行・展開可能） -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 sm:p-3 rounded-2xl bg-sky-50/70 border border-sky-100 text-xs">
+          <div class="flex items-center gap-2 min-w-0">
             <span class="text-base shrink-0">💡</span>
-            <div>
-              <span class="font-black text-sky-950 block">献立の「曜日チェック」とリアルタイム連動中</span>
-              <span class="text-slate-600 text-[11px]">
-                外食や予定がある日は、「1週間の献立」で曜日のチェックを外すと、その日の食材がここから自動で除外されます。
-              </span>
-            </div>
+            <span class="font-bold text-sky-950 truncate">献立の曜日チェックと連動中</span>
+            <details class="inline-block text-[11px] text-slate-500 cursor-pointer">
+              <summary class="hover:text-sky-700 underline list-none">（詳細）</summary>
+              <div class="mt-2 p-2.5 bg-white rounded-xl border border-sky-200/80 text-slate-600 space-y-1 text-[11px] shadow-xs">
+                <p>・「1週間の献立」で曜日のチェックを外すと、その日の食材が自動で除外されます。</p>
+                <p>・金額は標準相場に基づくおかず食材費の概算です（調味料・お米等は除く）。</p>
+              </div>
+            </details>
           </div>
-          <div id="shopping-included-days-badge" class="shrink-0 flex items-center gap-1">
-            <span class="px-2.5 py-1 rounded-lg bg-teal-100 text-teal-800 font-bold text-[11px] border border-teal-200">🛒 全7日分を反映中</span>
+          <div id="shopping-included-days-badge" class="shrink-0 flex items-center gap-1 self-start sm:self-auto">
+            <span class="px-2.5 py-0.5 rounded-lg bg-teal-100 text-teal-800 font-bold text-[11px] border border-teal-200">🛒 全7日分を反映中</span>
           </div>
-        </div>
-
-        <!-- 金額の目安・ズレに関する注意書き明示カード -->
-        <div class="p-3 sm:p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 leading-relaxed">
-          <div class="flex items-center gap-1.5 font-bold text-amber-900 mb-1">
-            <span class="text-sm">ℹ️</span>
-            <span>推定お会計と金額の目安について</span>
-          </div>
-          <p class="text-slate-600">
-            一般的なスーパーの標準相場に基づく「おかず食材費」の概算目安です。お米・基本調味料代や、店舗のパック売り規格（グラム単位の端数）、季節・天候による価格変動により、実際のレジお会計合計とは前後します。1週間の買い出し配分や節約ペースの目安としてご活用ください。
-          </p>
         </div>
 
         <!-- 基本調味料の非表示トグル ＆ 自由な買い足しメモ追加バー -->
@@ -676,16 +667,16 @@
     </div>
   </footer>
 
-  <!-- ==================== モーダル: お子様の好み・苦手食材診断 ==================== -->
+  <!-- ==================== モーダル: お子様の好み・苦手食材設定 ==================== -->
   <div id="modal-preferences" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-2.5 sm:p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[94vh]">
-      <!-- コンパクトヘッダー -->
-      <div class="px-4 py-2.5 sm:px-6 sm:py-3.5 border-b border-slate-100 shrink-0 flex items-center justify-between">
+      <!-- シンプルヘッダー（文字の引き算） -->
+      <div class="px-4 py-2.5 sm:px-5 sm:py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="text-xl">👶</span>
-          <div>
-            <h3 id="modal-preferences-title" class="text-sm sm:text-base font-black text-slate-900 leading-tight">お子様ごとの好み・苦手設定</h3>
-            <p id="modal-preferences-subtitle" class="text-[11px] text-slate-500">苦手な食材を除外し、同じ材料で別メニューも提案します</p>
+          <div class="flex items-center gap-2">
+            <h3 id="modal-preferences-title" class="text-sm sm:text-base font-black text-slate-900 leading-tight">苦手な食材・味</h3>
+            <span class="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full font-bold">※アレルギー非対応</span>
           </div>
         </div>
         <button id="btn-close-preferences" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors shrink-0">
@@ -693,8 +684,8 @@
         </button>
       </div>
 
-      <!-- コンパクト人数設定（2列で省スペース化） -->
-      <div class="px-3.5 py-2 sm:px-6 sm:py-2.5 bg-slate-50 border-b border-slate-100 grid grid-cols-2 gap-2 shrink-0">
+      <!-- コンパクト人数設定 -->
+      <div class="px-3.5 py-2 sm:px-5 sm:py-2.5 bg-slate-50/80 border-b border-slate-100 grid grid-cols-2 gap-2 shrink-0">
         <div class="flex flex-col gap-1 bg-white p-2 rounded-xl border border-sky-100 shadow-2xs">
           <label for="modal-servings-select" class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
             <span>👨‍👩‍👧‍👦</span> 家族の人数
@@ -725,33 +716,67 @@
         </div>
       </div>
 
-      <!-- 子供切り替えタブ（JSで人数に応じて動的レンダリング） -->
-      <div id="child-tabs-container" class="flex border-b border-slate-200 shrink-0 bg-slate-50 overflow-x-auto">
-        <button data-child-tab="child1" class="flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-teal-700 border-b-2 border-teal-600 bg-white">子供1</button>
-        <button data-child-tab="child2" class="flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-white border-b-2 border-transparent transition-colors">子供2</button>
-        <button data-child-tab="child3" class="flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-white border-b-2 border-transparent transition-colors">子供3</button>
+      <!-- 子供切り替えタブ ＆ 検索虫眼鏡ボタン -->
+      <div class="flex items-center justify-between border-b border-slate-200 shrink-0 bg-slate-50 px-2 sm:px-3">
+        <div id="child-tabs-container" class="flex flex-1 overflow-x-auto gap-1 py-1.5">
+          <!-- JSで動的生成 -->
+        </div>
+        <button id="btn-toggle-dislike-search" onclick="toggleDislikeSearch()" class="p-1.5 ml-1 text-slate-500 hover:text-teal-700 hover:bg-slate-200/60 rounded-xl transition-colors shrink-0 text-sm font-bold flex items-center gap-1" title="食材を検索">
+          <span>🔍</span>
+          <span class="text-[11px] hidden sm:inline">検索</span>
+        </button>
       </div>
 
-      <!-- 食材選択スクロール領域（スマホ画面の大部分を活用） -->
-      <div class="p-3 sm:p-5 overflow-y-auto flex-1">
-        <p class="text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">苦手になりやすい食材・味付け（タップで除外）</p>
-        <div id="preferences-dislikes-list" class="grid grid-cols-2 gap-2 pb-2">
+      <!-- 検索入力バー（虫眼鏡タップで展開） -->
+      <div id="dislike-search-container" class="hidden px-3 py-2 bg-teal-50/70 border-b border-teal-100 shrink-0">
+        <div class="relative flex items-center">
+          <span class="absolute left-2.5 text-xs text-slate-400 pointer-events-none">🔍</span>
+          <input id="input-dislike-search" type="search" placeholder="食材名で検索（例: ピーマン、ねぎ、魚、カレー...）" oninput="handleDislikeSearch(this.value)" class="w-full pl-8 pr-7 py-1.5 bg-white border border-teal-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400">
+          <button type="button" onclick="clearDislikeSearch()" class="absolute right-2 text-xs text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+      </div>
+
+      <!-- カテゴリー選択（3x2グリッド・大きめボタン） -->
+      <div id="dislike-category-grid" class="p-2 sm:p-2.5 bg-slate-50/60 border-b border-slate-100 grid grid-cols-3 gap-1.5 shrink-0">
+        <button type="button" onclick="selectDislikeCategory('vegetable')" data-cat="vegetable" class="cat-btn py-1.5 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 active:scale-95 bg-teal-600 text-white border-teal-600 shadow-2xs">
+          <span>🥦</span><span>野菜</span><span class="cat-badge text-[10px] hidden px-1.5 py-0.2 rounded-full bg-white text-teal-800 font-black"></span>
+        </button>
+        <button type="button" onclick="selectDislikeCategory('meat')" data-cat="meat" class="cat-btn py-1.5 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 active:scale-95 bg-white border-slate-200 text-slate-700 hover:bg-slate-100">
+          <span>🍖</span><span>肉</span><span class="cat-badge text-[10px] hidden px-1.5 py-0.2 rounded-full bg-teal-100 text-teal-800 font-black"></span>
+        </button>
+        <button type="button" onclick="selectDislikeCategory('fish')" data-cat="fish" class="cat-btn py-1.5 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 active:scale-95 bg-white border-slate-200 text-slate-700 hover:bg-slate-100">
+          <span>🐟</span><span>魚介</span><span class="cat-badge text-[10px] hidden px-1.5 py-0.2 rounded-full bg-teal-100 text-teal-800 font-black"></span>
+        </button>
+        <button type="button" onclick="selectDislikeCategory('soy_dairy_egg')" data-cat="soy_dairy_egg" class="cat-btn py-1.5 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 active:scale-95 bg-white border-slate-200 text-slate-700 hover:bg-slate-100">
+          <span>🥚</span><span>豆・乳・卵</span><span class="cat-badge text-[10px] hidden px-1.5 py-0.2 rounded-full bg-teal-100 text-teal-800 font-black"></span>
+        </button>
+        <button type="button" onclick="selectDislikeCategory('mushroom_seaweed')" data-cat="mushroom_seaweed" class="cat-btn py-1.5 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 active:scale-95 bg-white border-slate-200 text-slate-700 hover:bg-slate-100">
+          <span>🍄</span><span>きのこ・海藻</span><span class="cat-badge text-[10px] hidden px-1.5 py-0.2 rounded-full bg-teal-100 text-teal-800 font-black"></span>
+        </button>
+        <button type="button" onclick="selectDislikeCategory('flavor')" data-cat="flavor" class="cat-btn py-1.5 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 active:scale-95 bg-white border-slate-200 text-slate-700 hover:bg-slate-100">
+          <span>🧂</span><span>味・その他</span><span class="cat-badge text-[10px] hidden px-1.5 py-0.2 rounded-full bg-teal-100 text-teal-800 font-black"></span>
+        </button>
+      </div>
+
+      <!-- 食材選択スクロール領域（ピル/タグ型ボタンで五十音順配置） -->
+      <div class="p-3 sm:p-4 overflow-y-auto flex-1">
+        <div id="preferences-dislikes-list" class="flex flex-wrap gap-1.5 pb-2">
           <!-- JSで動的レンダリング -->
         </div>
       </div>
 
-      <!-- 固定フッター操作ボタン群（スクロールに埋もれずいつでも押せる） -->
-      <div class="px-4 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between gap-2 shrink-0">
+      <!-- 固定フッター操作ボタン群（文字を短くシンプル化） -->
+      <div class="px-3.5 py-2.5 sm:px-5 sm:py-3 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between gap-2 shrink-0">
         <button type="button" id="btn-reset-data" class="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors flex items-center gap-1 active:scale-95" title="すべての保存データを初期化">
           <span>🗑️</span>
-          <span>初期化</span>
+          <span>リセット</span>
         </button>
         <div class="flex items-center gap-2">
-          <button onclick="closePreferencesModal()" class="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-colors">
+          <button onclick="closePreferencesModal()" class="px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-colors">
             キャンセル
           </button>
           <button onclick="savePreferencesAndGenerate()" class="px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl text-xs font-black text-white bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 transition-all shadow-md shadow-sky-200/50 active:scale-95">
-            設定を保存して献立を作成
+            保存して作成
           </button>
         </div>
       </div>

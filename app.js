@@ -77,13 +77,9 @@ function getCleanTitle(recipe) {
   return recipe.title.replace(/^【外部サイト】/, '').replace(/^【登録レシピ】/, '').trim();
 }
 
-// 外部レシピ・動画の可愛いバッジHTML
+// 外部レシピ・動画の可愛いバッジHTML（Plan A: 完全自給レシピ化のため非表示）
 function getExternalBadge(recipe) {
-  if (!recipe || !recipe.url) return '';
-  if (recipe.url.includes('youtube.com') || recipe.url.includes('youtu.be')) {
-    return '<span class="text-[10px] text-rose-700 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">📺 動画</span>';
-  }
-  return '<span class="text-[10px] text-sky-700 bg-sky-50 border border-sky-200/80 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">🌐 外部</span>';
+  return '';
 }
 
 // 初期化
@@ -2349,7 +2345,7 @@ function renderDishRow(dayId, category, recipe, label) {
   const cuisineBadge = recipe.cuisine ? `<span class="text-[10px] text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold shadow-2xs">${CUISINE_LABELS[recipe.cuisine] || ''}</span>` : '';
   const extBadge = getExternalBadge(recipe);
 
-  // カテゴリ別の可愛いバッジ配色（主菜：さし色の温かみあるオレンジ/アンバー、副菜：薄黄緑、汁物：淡い青）
+  // カテゴリ別の可愛いバッジ配色（主菜：温かみあるオレンジ、副菜：薄黄緑、汁物：淡い青）
   let categoryBadgeClass = 'bg-gradient-to-r from-sky-500 to-teal-500 text-white';
   if (category === 'main') {
     categoryBadgeClass = 'bg-gradient-to-r from-amber-500 to-orange-500 text-white';
@@ -2389,36 +2385,83 @@ function renderDishRow(dayId, category, recipe, label) {
     `).join('');
   }
 
-  return `
-    <div class="flex flex-col p-3 rounded-2xl bg-slate-50/60 hover:bg-sky-50/50 border border-slate-100 hover:border-sky-200 transition-all group relative shadow-2xs hover:shadow-xs">
-      <div class="flex items-start justify-between gap-2">
-        <!-- 料理メタ＆料理名（クリックで作り方モーダル） -->
-        <div class="flex-1 min-w-0 cursor-pointer" onclick="openDetailModal('${recipe.id}')">
-          <!-- 上段：カテゴリ、ジャンル、外部バッジ、価格 -->
-          <div class="flex items-center gap-1.5 flex-wrap text-xs mb-1">
-            <span class="text-[11px] font-black px-2.5 py-0.5 rounded-full shadow-2xs ${categoryBadgeClass}">${label}</span>
-            ${cuisineBadge}
-            ${extBadge}
-            <span class="text-xs font-black text-teal-700 bg-teal-50 border border-teal-200/80 px-2 py-0.5 rounded-full ml-auto shadow-2xs">
-              ¥${recipe.approxCostPerPerson * state.servings}
-            </span>
+  // 主菜は美味しそうな写真付きアイキャッチカード、副菜・汁物は引き締まった1行テキスト
+  if (category === 'main') {
+    const mainImg = recipe.imagePath || (typeof getMainDishImage === 'function' ? getMainDishImage(recipe) : 'images/recipes/main_default.webp');
+    return `
+      <div class="flex flex-col p-2.5 sm:p-3 rounded-2xl bg-white hover:bg-amber-50/40 border border-amber-200/70 hover:border-amber-300 transition-all group relative shadow-2xs hover:shadow-xs">
+        <div class="flex items-center gap-3">
+          <!-- 主菜サムネイル写真（84px正方形・遅延読み込み） -->
+          <div class="relative shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-amber-200/80 shadow-2xs group-hover:scale-102 transition-transform" onclick="openDetailModal('${recipe.id}')">
+            <img src="${mainImg}" alt="${cleanTitle}" loading="lazy" class="w-20 h-20 sm:w-21 sm:h-21 object-cover">
+            <span class="absolute bottom-1 right-1 text-[9px] font-black px-1.5 py-0.2 rounded-md bg-black/60 text-white backdrop-blur-2xs">主菜</span>
           </div>
-          <!-- 下段：料理名（省略せず一目でわかる太字表示） -->
-          <div class="text-sm font-bold text-slate-800 group-hover:text-teal-700 transition-colors leading-snug break-words mt-0.5">
-            ${cleanTitle}
+
+          <!-- 右側：料理情報＆操作 -->
+          <div class="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+            <div>
+              <div class="flex items-center justify-between gap-1.5 flex-wrap text-xs mb-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs ${categoryBadgeClass}">${label}</span>
+                  ${cuisineBadge}
+                  <span class="text-[10px] text-slate-500 font-bold">⏱️${recipe.time}</span>
+                </div>
+                <!-- 操作ボタン -->
+                <div class="flex items-center gap-0.5 shrink-0 ml-auto">
+                  <button onclick="toggleFavorite('${recipe.id}', event)" class="p-1 rounded-lg transition-transform hover:scale-110 ${state.favoriteRecipeIds.includes(recipe.id) ? 'text-amber-500 hover:text-amber-600' : 'text-slate-300 hover:text-amber-400'}" title="お気に入り">
+                    <span class="text-sm leading-none">${state.favoriteRecipeIds.includes(recipe.id) ? '★' : '☆'}</span>
+                  </button>
+                  <button onclick="toggleBlacklist('${recipe.id}', event)" class="p-1 rounded-lg transition-transform hover:scale-110 text-slate-300 hover:text-rose-600" title="このレシピを除外">
+                    <span class="text-xs leading-none">🚫</span>
+                  </button>
+                  <button onclick="openChangeModal('${dayId}', '${category}')" class="p-1 text-slate-400 hover:text-teal-600 hover:bg-slate-100 rounded-lg transition-colors" title="別の主菜に変更">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 料理名（クリックで作り方モーダル） -->
+              <div class="text-sm sm:text-base font-black text-slate-900 group-hover:text-amber-700 transition-colors leading-snug break-words cursor-pointer" onclick="openDetailModal('${recipe.id}')">
+                ${cleanTitle}
+              </div>
+            </div>
+
+            <!-- 下段：価格目安 -->
+            <div class="flex items-center justify-end mt-1">
+              <span class="text-xs font-black text-teal-700 bg-teal-50 border border-teal-200/80 px-2 py-0.5 rounded-full shadow-2xs">
+                約¥${recipe.approxCostPerPerson * state.servings}
+              </span>
+            </div>
           </div>
         </div>
+        ${altHtml}
+      </div>
+    `;
+  }
 
-        <!-- 右端：お気に入り・除外・変更ボタン -->
-        <div class="flex items-center gap-0.5 shrink-0 pt-0.5">
-          <button onclick="toggleFavorite('${recipe.id}', event)" class="p-1.5 rounded-xl transition-transform hover:scale-110 ${state.favoriteRecipeIds.includes(recipe.id) ? 'text-amber-500 hover:text-amber-600' : 'text-slate-300 hover:text-amber-400'}" title="お気に入り（定期登板）">
-            <span class="text-base leading-none">${state.favoriteRecipeIds.includes(recipe.id) ? '★' : '☆'}</span>
+  // 副菜・汁物は引き算したコンパクト1行スタイル
+  return `
+    <div class="flex flex-col p-2.5 rounded-xl bg-slate-50/70 hover:bg-sky-50/50 border border-slate-100 hover:border-sky-200 transition-all group relative shadow-2xs">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex-1 min-w-0 cursor-pointer flex items-center gap-2" onclick="openDetailModal('${recipe.id}')">
+          <span class="text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs shrink-0 ${categoryBadgeClass}">${label}</span>
+          <span class="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-teal-700 transition-colors truncate">
+            ${cleanTitle}
+          </span>
+          <span class="text-[11px] font-black text-teal-700 shrink-0 ml-auto mr-1">
+            ¥${recipe.approxCostPerPerson * state.servings}
+          </span>
+        </div>
+
+        <div class="flex items-center gap-0.5 shrink-0">
+          <button onclick="toggleFavorite('${recipe.id}', event)" class="p-1 rounded-lg transition-transform hover:scale-110 ${state.favoriteRecipeIds.includes(recipe.id) ? 'text-amber-500 hover:text-amber-600' : 'text-slate-300 hover:text-amber-400'}" title="お気に入り">
+            <span class="text-sm leading-none">${state.favoriteRecipeIds.includes(recipe.id) ? '★' : '☆'}</span>
           </button>
-          <button onclick="toggleBlacklist('${recipe.id}', event)" class="p-1.5 rounded-xl transition-transform hover:scale-110 text-slate-300 hover:text-rose-600" title="このレシピを献立から除外（二度と出さない）">
-            <span class="text-sm leading-none">🚫</span>
+          <button onclick="toggleBlacklist('${recipe.id}', event)" class="p-1 rounded-lg transition-transform hover:scale-110 text-slate-300 hover:text-rose-600" title="除外">
+            <span class="text-xs leading-none">🚫</span>
           </button>
-          <button onclick="openChangeModal('${dayId}', '${category}')" class="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-white rounded-xl transition-colors shadow-2xs" title="別のレシピに変更">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <button onclick="openChangeModal('${dayId}', '${category}')" class="p-1 text-slate-400 hover:text-teal-600 hover:bg-white rounded-lg transition-colors" title="変更">
+            <i data-lucide="refresh-cw" class="w-3 h-3"></i>
           </button>
         </div>
       </div>
@@ -3271,23 +3314,23 @@ function renderRecipeBook() {
   safeCreateIcons();
 }
 
+// =================================================================
+// 苦手食材・味付け設定モーダル新ロジック（カテゴリ3x2・ピルタグ・虫眼鏡検索）
+// =================================================================
+state.activeDislikeCategory = state.activeDislikeCategory || 'vegetable';
+state.dislikeSearchQuery = state.dislikeSearchQuery || '';
+
 window.openPreferencesModal = function(isOnboarding = false) {
   const modal = document.getElementById('modal-preferences');
   const tabsContainer = document.getElementById('child-tabs-container');
-  const checklistContainer = document.getElementById('preferences-dislikes-list');
   const modalTitle = document.getElementById('modal-preferences-title');
-  const modalSubtitle = document.getElementById('modal-preferences-subtitle');
   const modalServings = document.getElementById('modal-servings-select');
   const modalChildrenCount = document.getElementById('modal-children-count-select');
 
   if (!modal) return;
 
-  if (isOnboarding) {
-    modalTitle.innerHTML = `👶 ご家族の人数とお子様の好み設定`;
-    modalSubtitle.textContent = `お子様が苦手な食材や味付けを除外して、みんなが喜ぶ節約献立を作成します。（後からいつでも変更可能）`;
-  } else {
-    modalTitle.innerHTML = `👶 ご家族の人数とお子様の好み設定`;
-    modalSubtitle.textContent = `苦手な食材や味付けを除外し、可能な場合は同じ材料で別メニューを提案します。`;
+  if (modalTitle) {
+    modalTitle.textContent = '苦手な食材・味';
   }
 
   if (modalServings) {
@@ -3309,7 +3352,7 @@ window.openPreferencesModal = function(isOnboarding = false) {
   if (tabsContainer) {
     if (state.childrenCount === 0) {
       tabsContainer.innerHTML = `
-        <div class="w-full py-2.5 px-4 text-xs font-bold text-teal-800 bg-teal-50 flex items-center justify-center gap-1.5">
+        <div class="w-full py-1.5 px-3 text-xs font-bold text-teal-800 bg-teal-50 rounded-xl flex items-center justify-center gap-1.5">
           <span>🌿</span>
           <span>大人・夫婦のみモード（お子様なし）</span>
         </div>
@@ -3319,15 +3362,21 @@ window.openPreferencesModal = function(isOnboarding = false) {
       for (let i = 1; i <= state.childrenCount; i++) {
         const childKey = `child${i}`;
         const isActive = state.activeChildTab === childKey;
+        // その子どもの苦手登録総数
+        const pref = state.childrenPreferences[childKey] || { dislikes: [], disabledFlavors: [] };
+        const totalCount = (pref.dislikes || []).length + (pref.disabledFlavors || []).length;
+        const countBadge = totalCount > 0 ? `<span class="ml-1 text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-white text-teal-800' : 'bg-slate-200 text-slate-700'} font-black">${totalCount}</span>` : '';
+
         tabsHtml += `
           <button data-child-tab="${childKey}" 
                   onclick="selectChildTab('${childKey}')"
-                  class="flex-1 py-3 text-xs sm:text-sm font-bold transition-all border-b-2 whitespace-nowrap px-3 cursor-pointer ${
+                  class="flex-1 py-1.5 px-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-1 ${
                     isActive 
-                      ? 'text-teal-700 border-teal-600 bg-white shadow-2xs' 
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-white border-transparent'
+                      ? 'bg-teal-600 text-white shadow-2xs' 
+                      : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200/80 hover:bg-slate-50'
                   }">
-            子供${i}
+            <span>子供${i}</span>
+            ${countBadge}
           </button>
         `;
       }
@@ -3335,64 +3384,11 @@ window.openPreferencesModal = function(isOnboarding = false) {
     }
   }
 
-  // チェックリストまたは0人向け案内の描画
-  if (checklistContainer) {
-    if (state.childrenCount === 0) {
-      checklistContainer.innerHTML = `
-        <div class="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-2">
-          <span class="text-3xl block">🍷✨</span>
-          <h4 class="font-bold text-slate-800 text-sm">お子様設定なし（大人向け自由献立）</h4>
-          <p class="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
-            お子様の苦手食材による制限を行わず、お肉・魚・旬野菜を使ったバラエティ豊かな節約レシピを優先して生成します。
-          </p>
-        </div>
-      `;
-    } else {
-      // 現在のタブが存在しない場合は child1 に合わせる
-      const currentChildNum = parseInt(state.activeChildTab.replace('child', ''), 10) || 1;
-      if (currentChildNum > state.childrenCount) {
-        state.activeChildTab = 'child1';
-      }
+  // カテゴリボタンのハイライトと件数バッジの更新
+  updateDislikeCategoryButtons();
 
-      const currentPref = state.childrenPreferences[state.activeChildTab] || { dislikes: [], disabledFlavors: [] };
-
-      let html = `<div class="col-span-full text-xs font-black text-slate-700 mt-0.5 mb-1 flex items-center gap-1.5"><span>🥬</span><span>苦手な食材・野菜（タップで除外）</span></div>`;
-      html += COMMON_DISLIKES.map(item => {
-        const isChecked = currentPref.dislikes.includes(item.id);
-        return `
-          <label class="flex items-center gap-2 p-2 sm:p-2.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold shadow-2xs ring-1 ring-amber-300' : 'bg-slate-50/80 border-slate-200/90 text-slate-700 hover:bg-slate-100'}">
-            <input type="checkbox" 
-                   class="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer accent-amber-600 shrink-0"
-                   value="${item.id}" 
-                   data-type="ingredient"
-                   ${isChecked ? 'checked' : ''} 
-                   onchange="handleDislikeToggle(this)">
-            <span class="text-base sm:text-lg shrink-0">${item.icon}</span>
-            <span class="text-[11px] sm:text-xs font-bold leading-tight break-words">${item.label}</span>
-          </label>
-        `;
-      }).join('');
-
-      html += `<div class="col-span-full text-xs font-black text-slate-700 mt-3 pt-3 border-t border-slate-200/80 mb-1 flex items-center gap-1.5"><span>🌶️</span><span>苦手な味付け・その他</span></div>`;
-      html += COMMON_FLAVORS.map(item => {
-        const isChecked = currentPref.disabledFlavors.includes(item.id);
-        return `
-          <label class="flex items-center gap-2 p-2 sm:p-2.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold shadow-2xs ring-1 ring-amber-300' : 'bg-slate-50/80 border-slate-200/90 text-slate-700 hover:bg-slate-100'}">
-            <input type="checkbox" 
-                   class="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300 cursor-pointer accent-amber-600 shrink-0"
-                   value="${item.id}" 
-                   data-type="flavor"
-                   ${isChecked ? 'checked' : ''} 
-                   onchange="handleDislikeToggle(this)">
-            <span class="text-base sm:text-lg shrink-0">${item.icon}</span>
-            <span class="text-[11px] sm:text-xs font-bold leading-tight break-words">${item.label}</span>
-          </label>
-        `;
-      }).join('');
-
-      checklistContainer.innerHTML = html;
-    }
-  }
+  // 食材ピルタグリストの描画
+  renderDislikeItemsList();
 
   modal.classList.remove('hidden');
   modal.classList.add('flex');
@@ -3401,38 +3397,207 @@ window.openPreferencesModal = function(isOnboarding = false) {
 
 window.selectChildTab = function(childKey) {
   state.activeChildTab = childKey;
-  openPreferencesModal(false);
+  const tabsContainer = document.getElementById('child-tabs-container');
+  if (tabsContainer) {
+    tabsContainer.querySelectorAll('button[data-child-tab]').forEach(btn => {
+      const isTarget = btn.getAttribute('data-child-tab') === childKey;
+      btn.className = isTarget 
+        ? 'flex-1 py-1.5 px-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-1 bg-teal-600 text-white shadow-2xs' 
+        : 'flex-1 py-1.5 px-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-1 bg-white text-slate-600 hover:text-slate-900 border border-slate-200/80 hover:bg-slate-50';
+    });
+  }
+  updateDislikeCategoryButtons();
+  renderDislikeItemsList();
 };
 
-window.handleDislikeToggle = function(checkbox) {
-  const val = checkbox.value;
-  const type = checkbox.getAttribute('data-type');
-  if (!state.childrenPreferences[state.activeChildTab]) {
-    state.childrenPreferences[state.activeChildTab] = { dislikes: [], disabledFlavors: [] };
-  }
-  const currentPref = state.childrenPreferences[state.activeChildTab];
+window.selectDislikeCategory = function(catId) {
+  state.activeDislikeCategory = catId;
+  state.dislikeSearchQuery = '';
+  const searchInput = document.getElementById('input-dislike-search');
+  if (searchInput) searchInput.value = '';
+  updateDislikeCategoryButtons();
+  renderDislikeItemsList();
+};
 
-  if (type === 'ingredient') {
-    if (checkbox.checked) {
-      if (!currentPref.dislikes.includes(val)) currentPref.dislikes.push(val);
-    } else {
-      currentPref.dislikes = currentPref.dislikes.filter(d => d !== val);
+window.toggleDislikeSearch = function() {
+  const container = document.getElementById('dislike-search-container');
+  const input = document.getElementById('input-dislike-search');
+  if (!container) return;
+
+  if (container.classList.contains('hidden')) {
+    container.classList.remove('hidden');
+    if (input) {
+      input.focus();
+      if (input.value) handleDislikeSearch(input.value);
     }
-  } else if (type === 'flavor') {
-    if (checkbox.checked) {
-      if (!currentPref.disabledFlavors.includes(val)) currentPref.disabledFlavors.push(val);
+  } else {
+    container.classList.add('hidden');
+    clearDislikeSearch();
+  }
+};
+
+window.handleDislikeSearch = function(query) {
+  state.dislikeSearchQuery = (query || '').trim().toLowerCase();
+  renderDislikeItemsList();
+};
+
+window.clearDislikeSearch = function() {
+  const input = document.getElementById('input-dislike-search');
+  if (input) input.value = '';
+  state.dislikeSearchQuery = '';
+  renderDislikeItemsList();
+};
+
+window.updateDislikeCategoryButtons = function() {
+  const grid = document.getElementById('dislike-category-grid');
+  if (!grid) return;
+
+  if (state.childrenCount === 0) {
+    grid.classList.add('opacity-40', 'pointer-events-none');
+    return;
+  }
+  grid.classList.remove('opacity-40', 'pointer-events-none');
+
+  const currentChild = state.activeChildTab || 'child1';
+  const pref = state.childrenPreferences[currentChild] || { dislikes: [], disabledFlavors: [] };
+  const dislikes = pref.dislikes || [];
+  const flavors = pref.disabledFlavors || [];
+
+  grid.querySelectorAll('.cat-btn').forEach(btn => {
+    const cat = btn.getAttribute('data-cat');
+    const isActive = cat === state.activeDislikeCategory && !state.dislikeSearchQuery;
+
+    // カテゴリー内の登録件数を集計
+    let count = 0;
+    if (typeof COMMON_DISLIKES !== 'undefined') {
+      const itemsInCat = COMMON_DISLIKES.filter(item => item.category === cat);
+      count = itemsInCat.filter(item => item.isFlavor ? flavors.includes(item.id) : dislikes.includes(item.id)).length;
+    }
+
+    const badge = btn.querySelector('.cat-badge');
+    if (badge) {
+      if (count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+        badge.className = `cat-badge text-[10px] px-1.5 py-0.2 rounded-full font-black ${isActive ? 'bg-white text-teal-800' : 'bg-teal-100 text-teal-800'}`;
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    if (isActive) {
+      btn.className = 'cat-btn py-1.5 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 active:scale-95 bg-teal-600 text-white border-teal-600 shadow-2xs';
     } else {
-      currentPref.disabledFlavors = currentPref.disabledFlavors.filter(d => d !== val);
+      btn.className = 'cat-btn py-1.5 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 active:scale-95 bg-white border-slate-200 text-slate-700 hover:bg-slate-100';
+    }
+  });
+};
+
+window.renderDislikeItemsList = function() {
+  const container = document.getElementById('preferences-dislikes-list');
+  if (!container) return;
+
+  if (state.childrenCount === 0) {
+    container.innerHTML = `
+      <div class="w-full py-8 text-center bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-2">
+        <span class="text-3xl block">🍷✨</span>
+        <h4 class="font-bold text-slate-800 text-sm">大人向け自由献立モード</h4>
+        <p class="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
+          苦手食材による除外を行わず、お肉・魚・旬の野菜を使った豊かな節約献立を優先して作成します。
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  const currentChild = state.activeChildTab || 'child1';
+  const pref = state.childrenPreferences[currentChild] || { dislikes: [], disabledFlavors: [] };
+  const dislikes = pref.dislikes || [];
+  const flavors = pref.disabledFlavors || [];
+
+  let targetItems = [];
+  const q = state.dislikeSearchQuery;
+
+  if (q) {
+    // 検索モード：全食材から名称・シノニムでフィルタリング
+    targetItems = COMMON_DISLIKES.filter(item => {
+      if (item.label.toLowerCase().includes(q) || item.id.toLowerCase().includes(q)) return true;
+      if (typeof DISLIKE_SYNONYMS !== 'undefined' && DISLIKE_SYNONYMS[item.id]) {
+        return DISLIKE_SYNONYMS[item.id].some(syn => syn.toLowerCase().includes(q));
+      }
+      return false;
+    });
+  } else {
+    // 通常モード：選択中カテゴリー内の食材（五十音順）
+    targetItems = COMMON_DISLIKES.filter(item => item.category === state.activeDislikeCategory);
+  }
+
+  if (targetItems.length === 0) {
+    container.innerHTML = `
+      <div class="w-full py-6 text-center text-slate-400 text-xs">
+        <span>🔍 「${q}」に一致する食材は見つかりませんでした</span>
+      </div>
+    `;
+    return;
+  }
+
+  const html = targetItems.map(item => {
+    const isChecked = item.isFlavor ? flavors.includes(item.id) : dislikes.includes(item.id);
+    return `
+      <button type="button" 
+              onclick="toggleDislikeItem('${item.id}', ${Boolean(item.isFlavor)})"
+              class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs border transition-all cursor-pointer select-none active:scale-95 ${
+                isChecked 
+                  ? 'bg-teal-600 text-white border-teal-600 font-bold shadow-2xs' 
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50 font-medium'
+              }">
+        <span class="text-sm">${item.icon}</span>
+        <span>${item.label}</span>
+        ${isChecked ? '<span class="text-[10px] font-black bg-white/20 rounded-full px-1">✓</span>' : ''}
+      </button>
+    `;
+  }).join('');
+
+  container.innerHTML = html;
+};
+
+window.toggleDislikeItem = function(itemId, isFlavor) {
+  const currentChild = state.activeChildTab || 'child1';
+  if (!state.childrenPreferences[currentChild]) {
+    state.childrenPreferences[currentChild] = { dislikes: [], disabledFlavors: [] };
+  }
+  const pref = state.childrenPreferences[currentChild];
+  if (!pref.dislikes) pref.dislikes = [];
+  if (!pref.disabledFlavors) pref.disabledFlavors = [];
+
+  if (isFlavor) {
+    if (pref.disabledFlavors.includes(itemId)) {
+      pref.disabledFlavors = pref.disabledFlavors.filter(id => id !== itemId);
+    } else {
+      pref.disabledFlavors.push(itemId);
+    }
+  } else {
+    if (pref.dislikes.includes(itemId)) {
+      pref.dislikes = pref.dislikes.filter(id => id !== itemId);
+    } else {
+      pref.dislikes.push(itemId);
     }
   }
 
-  // 親ラベルのハイライト即時切り替え（再描画なしで爆速反応）
-  const parentLabel = checkbox.closest('label');
-  if (parentLabel) {
-    if (checkbox.checked) {
-      parentLabel.className = 'flex items-center gap-2 p-2 sm:p-2.5 rounded-xl border cursor-pointer select-none transition-all bg-amber-50 border-amber-400 text-amber-950 font-bold shadow-2xs ring-1 ring-amber-300';
-    } else {
-      parentLabel.className = 'flex items-center gap-2 p-2 sm:p-2.5 rounded-xl border cursor-pointer select-none transition-all bg-slate-50/80 border-slate-200/90 text-slate-700 hover:bg-slate-100';
+  // カテゴリバッジ・子タブバッジ・ピルタグ一覧を更新
+  updateDislikeCategoryButtons();
+  renderDislikeItemsList();
+
+  // 子タブの件数バッジも更新
+  const tabsContainer = document.getElementById('child-tabs-container');
+  if (tabsContainer) {
+    const btn = tabsContainer.querySelector(`button[data-child-tab="${currentChild}"]`);
+    if (btn) {
+      const totalCount = pref.dislikes.length + pref.disabledFlavors.length;
+      btn.innerHTML = `
+        <span>子供${currentChild.replace('child', '')}</span>
+        ${totalCount > 0 ? `<span class="ml-1 text-[10px] px-1.5 py-0.2 rounded-full bg-white text-teal-800 font-black">${totalCount}</span>` : ''}
+      `;
     }
   }
 };
@@ -3496,15 +3661,25 @@ window.openDetailModal = function(recipeId) {
   if (recipe.category === 'main') categoryBadgeClass = 'bg-gradient-to-r from-amber-500 to-orange-500 text-white';
   else if (recipe.category === 'side') categoryBadgeClass = 'bg-gradient-to-r from-lime-500 to-emerald-500 text-white';
 
+  const mainImgHtml = recipe.category === 'main' ? `
+    <div class="w-full h-44 sm:h-52 overflow-hidden bg-slate-100 relative">
+      <img src="${recipe.imagePath || (typeof getMainDishImage === 'function' ? getMainDishImage(recipe) : 'images/recipes/main_default.webp')}" alt="${cleanTitle}" class="w-full h-full object-cover">
+      <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
+      <span class="absolute bottom-3 left-4 text-xs font-black px-2.5 py-1 rounded-lg bg-black/60 text-white backdrop-blur-2xs">
+        主菜のおかず
+      </span>
+    </div>
+  ` : '';
+
   content.innerHTML = `
-    <div class="p-6 border-b border-sky-100 bg-white">
+    ${mainImgHtml}
+    <div class="p-5 sm:p-6 border-b border-sky-100 bg-white">
       <div class="flex items-center gap-2 mb-3 flex-wrap">
         <span class="text-xs font-black px-3 py-1 rounded-full shadow-2xs ${categoryBadgeClass}">
           ${categoryLabels[recipe.category]}
         </span>
         ${cuisineBadge}
         ${proteinBadge}
-        ${extBadge}
         <span class="text-xs text-slate-500 font-bold">⏱️ 調理時間 約${recipe.time}</span>
         <span class="text-xs font-black text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full ml-auto shadow-2xs">
           ${state.servings}人分目安: 約¥${cost5p}
@@ -3543,7 +3718,7 @@ window.openDetailModal = function(recipeId) {
       </div>
     </div>
 
-    <div class="p-6 border-b border-slate-100 bg-slate-50/50">
+    <div class="p-5 sm:p-6 border-b border-slate-100 bg-slate-50/50">
       <h4 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
         <i data-lucide="shopping-basket" class="w-4 h-4 text-emerald-600"></i>
         材料（${state.servings}人分）
@@ -3561,12 +3736,12 @@ window.openDetailModal = function(recipeId) {
       </div>
     </div>
 
-    <div class="p-6">
+    <div class="p-5 sm:p-6">
       <h4 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
         <i data-lucide="chef-hat" class="w-4 h-4 text-emerald-600"></i>
         作り方手順（3ステップ）
       </h4>
-      <ol class="space-y-3 mb-4">
+      <ol class="space-y-3 mb-2">
         ${(recipe.instructions && recipe.instructions.length > 0 ? recipe.instructions : ['材料を切って下ごしらえをします。', 'フライパンや鍋で加熱調理します。', '調味料で味を調えて完成です。']).map((step, idx) => `
           <li class="flex items-start gap-3 text-sm text-slate-700 leading-relaxed">
             <span class="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs shrink-0 mt-0.5">
@@ -3576,21 +3751,6 @@ window.openDetailModal = function(recipeId) {
           </li>
         `).join('')}
       </ol>
-      ${recipe.url ? `
-        <div class="mt-4 bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-4 border border-sky-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <span class="text-2xl">${recipe.url.includes('youtube') ? '📺' : '🌐'}</span>
-            <div>
-              <p class="text-xs font-bold text-sky-950">${recipe.url.includes('youtube') ? 'YouTube動画で手順・コツを見る' : '外部公式サイトで詳しく見る'}</p>
-              <p class="text-[11px] text-sky-700">プロの手順動画やユーザーの口コミ・写真を確認できます</p>
-            </div>
-          </div>
-          <a href="${recipe.url}" target="_blank" rel="noopener noreferrer" class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-lg transition-all shadow-xs hover:shadow">
-            <span>${recipe.url.includes('youtube') ? '動画を見る' : '外部レシピを見る'}</span>
-            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-          </a>
-        </div>
-      ` : ''}
     </div>
   `;
 

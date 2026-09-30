@@ -3,43 +3,184 @@
 // cuisine: 'japanese' (和風), 'western' (洋風), 'chinese' (中華)
 // proteinType: 'chicken' (鶏肉), 'pork' (豚肉), 'mince' (ひき肉), 'fish' (魚), 'soy' (大豆製品・その他)
 
+const DISLIKE_CATEGORIES = [
+  { id: "vegetable", label: "野菜", icon: "🥦" },
+  { id: "meat", label: "肉", icon: "🍖" },
+  { id: "fish", label: "魚介", icon: "🐟" },
+  { id: "soy_dairy_egg", label: "豆・乳・卵", icon: "🥚" },
+  { id: "mushroom_seaweed", label: "きのこ・海藻", icon: "🍄" },
+  { id: "flavor", label: "味・その他", icon: "🧂" }
+];
+
 const COMMON_DISLIKES = [
-  { id: "ピーマン", label: "ピーマン・パプリカ", icon: "🫑" },
-  { id: "トマト", label: "トマト・ミニトマト", icon: "🍅" },
-  { id: "なす", label: "なす", icon: "🍆" },
-  { id: "きのこ", label: "きのこ類（えのき等）", icon: "🍄" },
-  { id: "ネギ", label: "ネギ・玉ねぎ類", icon: "🧅" },
-  { id: "にんじん", label: "にんじん", icon: "🥕" },
-  { id: "ブロッコリー", label: "ブロッコリー", icon: "🥦" },
-  { id: "青菜", label: "青菜・葉物（ほうれん草等）", icon: "🌱" },
-  { id: "かぼちゃ", label: "かぼちゃ・さつまいも", icon: "🎃" },
-  { id: "魚", label: "魚全般（サバ・鮭等）", icon: "🐟" },
-  { id: "納豆", label: "納豆・豆類", icon: "🥢" },
-  { id: "苦味野菜", label: "ゴーヤ・セロリ等", icon: "🥒" }
+  // 1. 野菜（32品、いも類含む・五十音順）
+  { id: "アスパラガス", label: "アスパラガス", icon: "🌿", category: "vegetable" },
+  { id: "いんげん", label: "いんげん", icon: "🌱", category: "vegetable" },
+  { id: "枝豆", label: "枝豆", icon: "🫛", category: "vegetable" },
+  { id: "オクラ", label: "オクラ", icon: "🌱", category: "vegetable" },
+  { id: "かぼちゃ", label: "かぼちゃ", icon: "🎃", category: "vegetable" },
+  { id: "カリフラワー", label: "カリフラワー", icon: "🥦", category: "vegetable" },
+  { id: "キャベツ", label: "キャベツ", icon: "🥬", category: "vegetable" },
+  { id: "きゅうり", label: "きゅうり", icon: "🥒", category: "vegetable" },
+  { id: "グリーンピース", label: "グリーンピース", icon: "🫛", category: "vegetable" },
+  { id: "ゴーヤ", label: "ゴーヤ", icon: "🥒", category: "vegetable" },
+  { id: "ごぼう", label: "ごぼう", icon: "🪵", category: "vegetable" },
+  { id: "小松菜", label: "小松菜", icon: "🥬", category: "vegetable" },
+  { id: "さつまいも", label: "さつまいも", icon: "🍠", category: "vegetable" },
+  { id: "さといも", label: "さといも", icon: "🥔", category: "vegetable" },
+  { id: "さやえんどう", label: "さやえんどう", icon: "🌱", category: "vegetable" },
+  { id: "じゃがいも", label: "じゃがいも", icon: "🥔", category: "vegetable" },
+  { id: "セロリ", label: "セロリ", icon: "🥬", category: "vegetable" },
+  { id: "大根", label: "大根", icon: "🌱", category: "vegetable" },
+  { id: "たけのこ", label: "たけのこ", icon: "🎍", category: "vegetable" },
+  { id: "玉ねぎ", label: "玉ねぎ", icon: "🧅", category: "vegetable" },
+  { id: "とうもろこし", label: "とうもろこし", icon: "🌽", category: "vegetable" },
+  { id: "トマト", label: "トマト", icon: "🍅", category: "vegetable" },
+  { id: "長芋・山芋", label: "長芋・山芋", icon: "🥔", category: "vegetable" },
+  { id: "長ねぎ", label: "長ねぎ", icon: "🧅", category: "vegetable" },
+  { id: "にら", label: "にら", icon: "🌱", category: "vegetable" },
+  { id: "にんじん", label: "にんじん", icon: "🥕", category: "vegetable" },
+  { id: "白菜", label: "白菜", icon: "🥬", category: "vegetable" },
+  { id: "ピーマン", label: "ピーマン", icon: "🫑", category: "vegetable" },
+  { id: "ブロッコリー", label: "ブロッコリー", icon: "🥦", category: "vegetable" },
+  { id: "ほうれん草", label: "ほうれん草", icon: "🥬", category: "vegetable" },
+  { id: "もやし", label: "もやし", icon: "🌱", category: "vegetable" },
+  { id: "れんこん", label: "れんこん", icon: "🪵", category: "vegetable" },
+
+  // 2. 肉（4品、五十音順）
+  { id: "牛肉", label: "牛肉", icon: "🥩", category: "meat" },
+  { id: "鶏肉", label: "鶏肉", icon: "🍗", category: "meat" },
+  { id: "豚肉", label: "豚肉", icon: "🥓", category: "meat" },
+  { id: "レバー", label: "レバー", icon: "🥩", category: "meat" },
+
+  // 3. 魚介（9品、五十音順）
+  { id: "あさり", label: "あさり", icon: "🦪", category: "fish" },
+  { id: "いか", label: "いか", icon: "🦑", category: "fish" },
+  { id: "えび", label: "えび", icon: "🦐", category: "fish" },
+  { id: "貝類", label: "貝類", icon: "🐚", category: "fish" },
+  { id: "鮭", label: "鮭", icon: "🐟", category: "fish" },
+  { id: "さば", label: "さば", icon: "🐟", category: "fish" },
+  { id: "しらす", label: "しらす", icon: "🐟", category: "fish" },
+  { id: "たこ", label: "たこ", icon: "🐙", category: "fish" },
+  { id: "ツナ", label: "ツナ", icon: "🥫", category: "fish" },
+
+  // 4. 豆・乳・卵（5品、五十音順）
+  { id: "牛乳", label: "牛乳", icon: "🥛", category: "soy_dairy_egg" },
+  { id: "チーズ", label: "チーズ", icon: "🧀", category: "soy_dairy_egg" },
+  { id: "卵", label: "卵", icon: "🥚", category: "soy_dairy_egg" },
+  { id: "豆腐", label: "豆腐", icon: "🧊", category: "soy_dairy_egg" },
+  { id: "納豆", label: "納豆", icon: "🥢", category: "soy_dairy_egg" },
+
+  // 5. きのこ・海藻（8品、五十音順）
+  { id: "えのき", label: "えのき", icon: "🍄", category: "mushroom_seaweed" },
+  { id: "昆布", label: "昆布", icon: "🌿", category: "mushroom_seaweed" },
+  { id: "しいたけ", label: "しいたけ", icon: "🍄", category: "mushroom_seaweed" },
+  { id: "しめじ", label: "しめじ", icon: "🍄", category: "mushroom_seaweed" },
+  { id: "のり", label: "のり", icon: "🍙", category: "mushroom_seaweed" },
+  { id: "ひじき", label: "ひじき", icon: "🥢", category: "mushroom_seaweed" },
+  { id: "まいたけ", label: "まいたけ", icon: "🍄", category: "mushroom_seaweed" },
+  { id: "わかめ", label: "わかめ", icon: "🌿", category: "mushroom_seaweed" },
+
+  // 6. 味・その他（6品、五十音順）
+  { id: "こんにゃく", label: "こんにゃく", icon: "🍢", category: "flavor" },
+  { id: "curry", label: "カレー味", icon: "🍛", category: "flavor", isFlavor: true },
+  { id: "stew", label: "シチュー・クリーム系", icon: "🍲", category: "flavor", isFlavor: true },
+  { id: "spicy", label: "辛い味付け", icon: "🌶️", category: "flavor", isFlavor: true },
+  { id: "sour", label: "酸っぱい味", icon: "🍋", category: "flavor", isFlavor: true },
+  { id: "mayo", label: "マヨネーズ味", icon: "🥚", category: "flavor", isFlavor: true }
 ];
 
 const DISLIKE_SYNONYMS = {
-  "ピーマン": ["ピーマン", "パプリカ"],
-  "トマト": ["トマト", "ミニトマト"],
-  "なす": ["なす", "茄子"],
-  "きのこ": ["きのこ", "えのき", "しめじ", "まいたけ", "舞茸", "しいたけ", "椎茸", "エリンギ"],
-  "ネギ": ["ネギ", "ねぎ", "長ネギ", "長ねぎ", "青ネギ", "青ねぎ", "万能ねぎ", "白ねぎ", "玉ねぎ", "たまねぎ"],
-  "長ネギ": ["ネギ", "ねぎ", "長ネギ", "長ねぎ", "青ネギ", "青ねぎ", "万能ねぎ", "白ねぎ"], // 互換用
+  // 野菜
+  "アスパラガス": ["アスパラガス", "アスパラ"],
+  "いんげん": ["いんげん", "インゲン", "さやいんげん", "サヤインゲン"],
+  "枝豆": ["枝豆", "えだまめ", "エダマメ"],
+  "オクラ": ["オクラ", "おくら"],
+  "かぼちゃ": ["かぼちゃ", "カボチャ", "南瓜"],
+  "カリフラワー": ["カリフラワー"],
+  "キャベツ": ["キャベツ"],
+  "きゅうり": ["きゅうり", "キュウリ", "胡瓜"],
+  "グリーンピース": ["グリーンピース", "グリンピース"],
+  "ゴーヤ": ["ゴーヤ", "にがうり", "苦瓜"],
+  "ごぼう": ["ごぼう", "ゴボウ", "牛蒡"],
+  "小松菜": ["小松菜", "コマツナ"],
+  "さつまいも": ["さつまいも", "サツマイモ", "さつま芋"],
+  "さといも": ["さといも", "サトイモ", "里芋"],
+  "さやえんどう": ["さやえんどう", "サヤエンドウ", "絹さや", "きぬさや"],
+  "じゃがいも": ["じゃがいも", "ジャガイモ", "じゃが芋", "ポテト"],
+  "セロリ": ["セロリ"],
+  "大根": ["大根", "だいこん"],
+  "たけのこ": ["たけのこ", "タケノコ", "筍"],
+  "玉ねぎ": ["玉ねぎ", "たまねぎ", "タマネギ", "玉葱"],
+  "とうもろこし": ["とうもろこし", "コーン", "トウモロコシ"],
+  "トマト": ["トマト", "ミニトマト", "プチトマト"],
+  "長芋・山芋": ["長芋", "ながいも", "山芋", "やまいも", "とろろ"],
+  "長ねぎ": ["長ねぎ", "長ネギ", "ねぎ", "ネギ", "青ねぎ", "青ネギ", "白ねぎ", "白ネギ", "万能ねぎ", "万能ネギ", "わけぎ", "葉ねぎ"],
+  "にら": ["にら", "ニラ", "韮"],
   "にんじん": ["にんじん", "ニンジン", "人参"],
+  "白菜": ["白菜", "はくさい"],
+  "ピーマン": ["ピーマン", "パプリカ"],
   "ブロッコリー": ["ブロッコリー"],
-  "青菜": ["青菜", "ほうれん草", "ホウレン草", "小松菜", "コマツナ", "豆苗", "春菊", "チンゲン菜", "水菜"],
-  "豆苗": ["豆苗", "青菜", "ほうれん草", "小松菜"], // 互換用
-  "かぼちゃ": ["かぼちゃ", "カボチャ", "南瓜", "さつまいも", "サツマイモ", "さつま芋"],
-  "魚": ["魚", "サバ", "さば", "鮭", "サーモン", "タラ", "たら", "ブリ", "ぶり", "アジ", "あじ", "イワシ", "いわし", "しらす", "サンマ", "ツナ"],
-  "納豆": ["納豆", "大豆"],
+  "ほうれん草": ["ほうれん草", "ホウレン草", "ほうれんそう", "法蓮草"],
+  "もやし": ["もやし", "モヤシ"],
+  "れんこん": ["れんこん", "レンコン", "蓮根"],
+
+  // 肉
+  "牛肉": ["牛肉", "牛こま", "牛バラ", "牛もも", "牛ひき肉", "牛挽肉"],
+  "鶏肉": ["鶏肉", "鶏むね", "鶏胸", "鶏もも", "鶏モモ", "鶏ささみ", "ささみ", "ササミ", "手羽先", "手羽元", "鶏ひき肉", "鶏挽肉"],
+  "豚肉": ["豚肉", "豚こま", "豚バラ", "豚ロース", "豚もも", "豚ひき肉", "豚挽肉"],
+  "レバー": ["レバー", "鶏レバー", "豚レバー", "牛レバー"],
+
+  // 魚介
+  "あさり": ["あさり", "アサリ", "浅蜊"],
+  "いか": ["いか", "イカ", "烏賊"],
+  "えび": ["えび", "エビ", "海老", "むきえび", "桜えび"],
+  "貝類": ["貝", "ほたて", "ホタテ", "帆立", "しじみ", "シジミ", "かき", "牡蠣", "あさり", "はまぐり"],
+  "鮭": ["鮭", "さけ", "サケ", "サーモン", "生鮭"],
+  "さば": ["さば", "サバ", "鯖", "さば缶", "サバ缶"],
+  "しらす": ["しらす", "シラス", "ちりめんじゃこ", "じゃこ"],
+  "たこ": ["たこ", "タコ", "蛸"],
+  "ツナ": ["ツナ", "ツナ缶", "シーチキン"],
+
+  // 豆・乳・卵
+  "牛乳": ["牛乳", "ミルク", "生クリーム", "スキムミルク"],
+  "チーズ": ["チーズ", "ピザ用チーズ", "粉チーズ", "スライスチーズ", "プロセスチーズ"],
+  "卵": ["卵", "たまご", "玉子", "鶏卵", "うずら"],
+  "豆腐": ["豆腐", "木綿豆腐", "絹ごし豆腐", "絹豆腐", "厚揚げ", "油揚げ", "おから", "高野豆腐"],
+  "納豆": ["納豆", "なっとう"],
+
+  // きのこ・海藻
+  "えのき": ["えのき", "エノキ", "えのきたけ"],
+  "昆布": ["昆布", "こんぶ", "コンブ", "塩昆布"],
+  "しいたけ": ["しいたけ", "シイタケ", "椎茸", "干ししいたけ"],
+  "しめじ": ["しめじ", "シメジ", "ぶなしめじ"],
+  "のり": ["のり", "海苔", "焼きのり", "味付け海苔", "青のり", "きざみのり"],
+  "ひじき": ["ひじき", "ヒジキ", "芽ひじき", "長ひじき"],
+  "まいたけ": ["まいたけ", "マイタケ", "舞茸"],
+  "わかめ": ["わかめ", "ワカメ", "乾燥わかめ", "生わかめ"],
+
+  // 味・その他
+  "こんにゃく": ["こんにゃく", "コンニャク", "蒟蒻", "しらたき", "白滝", "糸こんにゃく"],
+  "curry": ["カレー", "カレールー", "カレー粉"],
+  "stew": ["シチュー", "クリームシチュー", "ホワイトソース", "シチュールー"],
+  "spicy": ["豆板醤", "トウバンジャン", "ラー油", "キムチ", "唐辛子", "鷹の爪", "コチュジャン"],
+  "sour": ["酢", "お酢", "ポン酢", "ぽん酢", "黒酢", "レモン汁", "梅干し"],
+  "mayo": ["マヨネーズ", "マヨ"],
+
+  // 過去設定の互換キー
+  "なす": ["なす", "茄子"],
+  "きのこ": ["きのこ", "えのき", "しめじ", "まいたけ", "しいたけ", "エリンギ"],
+  "ネギ": ["ネギ", "ねぎ", "長ネギ", "長ねぎ", "青ネギ", "青ねぎ", "玉ねぎ", "たまねぎ"],
+  "青菜": ["青菜", "ほうれん草", "小松菜", "豆苗", "春菊", "チンゲン菜", "水菜"],
+  "魚": ["魚", "サバ", "さば", "鮭", "たら", "ぶり", "アジ", "しらす", "ツナ"],
   "苦味野菜": ["ゴーヤ", "にがうり", "セロリ"]
 };
 
 const COMMON_FLAVORS = [
   { id: "curry", label: "カレー味", icon: "🍛" },
   { id: "stew", label: "シチュー・クリーム系", icon: "🍲" },
-  { id: "spicy", label: "辛い味付け（豆板醤等）", icon: "🌶️" },
-  { id: "sour", label: "酸っぱい味（お酢・ポン酢）", icon: "🍋" },
+  { id: "spicy", label: "辛い味付け", icon: "🌶️" },
+  { id: "sour", label: "酸っぱい味", icon: "🍋" },
   { id: "mayo", label: "マヨネーズ味", icon: "🥚" }
 ];
 
@@ -6534,3 +6675,25 @@ const DAYS_OF_WEEK = [
 ];
 
 const AISLE_ORDER = ["野菜", "肉・魚", "大豆・乳・加工品", "調味料・その他"];
+
+// 主菜レシピ用の画像パス解決関数
+function getMainDishImage(recipe) {
+  if (!recipe) return 'images/recipes/main_default.webp';
+  if (recipe.imagePath) return recipe.imagePath;
+  if (recipe.category !== 'main') return '';
+
+  const pt = recipe.proteinType || '';
+  if (pt === 'chicken') return 'images/recipes/main_chicken.webp';
+  if (pt === 'pork') return 'images/recipes/main_pork.webp';
+  if (pt === 'mince') return 'images/recipes/main_mince.webp';
+  if (pt === 'fish') return 'images/recipes/main_fish.webp';
+  if (pt === 'soy') return 'images/recipes/main_soy.webp';
+  return 'images/recipes/main_default.webp';
+}
+
+// 主菜レシピに imagePath を割り当て
+RECIPES_DATA.forEach(r => {
+  if (r.category === 'main' && !r.imagePath) {
+    r.imagePath = getMainDishImage(r);
+  }
+});
