@@ -18,7 +18,7 @@
   <meta http-equiv="Expires" content="0">
   <!-- PWA & アイコン設定 -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0ea5e9">
+  <meta name="theme-color" content="#FFFDF8">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="節約献立">
@@ -620,6 +620,31 @@
       #weekly-plan-container .grid-cols-7{gap:3px !important}
       #weekly-plan-container [id^="swipe-day-tab-"]{padding-top:3px !important;padding-bottom:3px !important}
     }
+    .budget-overview,.compact-settings {width:calc(100% - 24px);max-width:1128px;margin:0 auto 8px;box-sizing:border-box}
+    .budget-overview {padding:12px 14px;background:#EEF8F3;border:1px solid #d7e5de;border-radius:14px;color:#243A34}
+    .budget-overview-top {display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+    #budget-balance {font-size:1.25rem;line-height:1.4}
+    .budget-overview button,.compact-settings-actions button {min-height:44px;padding:0 10px;border:1px solid #d7e5de;border-radius:10px;background:#FFFDF8;font-weight:700;font-size:.8125rem}
+    #budget-estimate {font-size:.75rem;margin:2px 0 8px;overflow-wrap:anywhere}
+    #budget-meter {height:6px;background:#d7e5de;border-radius:3px;overflow:hidden}
+    #budget-meter-fill {display:block;height:100%;background:#0B6F66}
+    #budget-meter.is-over-budget #budget-meter-fill {background:#b85e50}
+    .compact-settings>summary {min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;font-size:.75rem;color:#696761}
+    .compact-settings-copy {display:flex;flex-wrap:wrap;gap:4px 10px;min-width:0;white-space:normal;overflow-wrap:anywhere}
+    .compact-settings-change {flex-shrink:0;font-weight:700;color:#243A34}
+    .compact-settings-change::after {content:' ⌄'}
+    .compact-settings[open] .compact-settings-change::after {content:' ⌃'}
+    .compact-settings-actions {display:flex;flex-wrap:wrap;gap:8px;padding-bottom:8px}
+    .weekly-print-btn {width:auto !important;min-width:60px !important;flex-shrink:0;white-space:nowrap;min-height:44px !important}
+    .recipe-category-scroll {align-items:flex-start;height:auto}
+    .recipe-category-scroll>button {display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;height:44px;min-height:44px;max-height:44px;line-height:1.2;border-radius:12px;align-self:flex-start;white-space:nowrap;gap:4px}
+    #btn-clear-checked {color:#696761;background:#FFFDF8;border-color:#ddd4c9;min-height:44px;white-space:nowrap}
+    div:has(> #btn-swipe-prev),div:has(> #btn-recipe-swipe-prev) {display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:6px}
+    #btn-swipe-prev,#btn-swipe-next,#btn-recipe-swipe-prev,#btn-recipe-swipe-next {position:static;transform:none;width:44px;height:44px;grid-row:1;box-shadow:none}
+    #btn-swipe-prev,#btn-recipe-swipe-prev {grid-column:1}
+    #btn-swipe-next,#btn-recipe-swipe-next {grid-column:3}
+    #weekly-swipe-slider,#recipe-swipe-slider {grid-row:2;grid-column:1 / -1;min-width:0;width:100%}
+    @media print {.budget-overview,.compact-settings {display:none}}
   </style>
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col antialiased selection:bg-sky-200 selection:text-sky-900">
@@ -659,47 +684,15 @@
   </header>
 
 
-  <!-- ==================== コア機能導線：予算 → 苦手食材 → 買い物 ==================== -->
-  <section class="core-flow-wrap" aria-label="節約献立の3ステップ">
-    <div class="core-flow-head">
-      <div>
-        <span class="core-flow-kicker">3 STEP</span>
-        <h2>予算・苦手・買い物。</h2>
-      </div>
-    </div>
-
-    <div class="core-flow-grid">
-      <article class="core-flow-card core-flow-budget">
-        <div class="core-flow-index">01</div>
-        <div class="core-flow-icon">¥</div>
-        <div class="core-flow-copy">
-          <span class="core-flow-label">予算</span>
-          <strong id="core-budget-display">¥4,500 / 週</strong>
-        </div>
-        <button type="button" onclick="openCoreBudgetPanel()" class="core-flow-action">変更</button>
-      </article>
-
-      <article class="core-flow-card core-flow-dislike">
-        <div class="core-flow-index">02</div>
-        <div class="core-flow-icon">×</div>
-        <div class="core-flow-copy">
-          <span class="core-flow-label">苦手食材</span>
-          <strong id="core-dislike-display">まだ設定していません</strong>
-        </div>
-        <button type="button" onclick="openPreferencesModal(false)" class="core-flow-action core-flow-action-strong">設定</button>
-      </article>
-
-      <article class="core-flow-card core-flow-shopping">
-        <div class="core-flow-index">03</div>
-        <div class="core-flow-icon">✓</div>
-        <div class="core-flow-copy">
-          <span class="core-flow-label">買い物</span>
-          <strong id="core-shopping-display">1週間分を自動集計</strong>
-        </div>
-        <button type="button" onclick="openCoreShoppingList()" class="core-flow-action">見る</button>
-      </article>
-    </div>
+  <section class="budget-overview" aria-label="今週の予算">
+    <div class="budget-overview-top"><strong id="budget-balance">今週の予算残り</strong><button type="button" onclick="openCoreBudgetPanel()">予算変更</button></div>
+    <p id="budget-estimate">献立の予定額を計算中</p>
+    <div id="budget-meter" role="meter" aria-label="献立の予定額の予算使用率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="budget-meter-fill"></span></div>
   </section>
+  <details class="compact-settings">
+    <summary><span class="compact-settings-copy"><span id="core-budget-display">¥4,500 / 週</span><span id="core-servings-display">3人分</span><span id="core-dislike-display">子ども1人・未設定</span></span><span class="compact-settings-change">変更</span></summary>
+    <div class="compact-settings-actions"><button type="button" onclick="openCoreBudgetPanel()">週間予算</button><button type="button" onclick="openPreferencesModal(false)">人数・苦手食材</button></div>
+  </details>
 
   <!-- 予算クイックパネル -->
   <div id="core-budget-panel" class="core-budget-panel hidden">
@@ -813,7 +806,7 @@
           <!-- チェック解除 -->
           <button id="btn-clear-checked" class="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-2xs active:scale-95 cursor-pointer">
             <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
-            <span>解除</span>
+            <span>チェックを全部外す</span>
           </button>
           <button id="btn-sync-refresh-shopping" onclick="triggerManualSync()" class="hidden"></button>
         </div>
@@ -1557,14 +1550,14 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20261001_recipe_steps"></script>
-  <script src="app.js?v=20261001_recipe_steps"></script>
+  <script src="recipes.js?v=20261001_budget_ui"></script>
+  <script src="app.js?v=20261001_budget_ui"></script>
 
   <!-- PWA Service Worker 登録 ＆ 自動アップデート検知 -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261001_recipe_steps', { updateViaCache: 'none' })
+        navigator.serviceWorker.register('./sw.js?v=20261001_budget_ui', { updateViaCache: 'none' })
           .then((reg) => {
             // 起動時にサーバーへ即座に更新チェック
             reg.update();

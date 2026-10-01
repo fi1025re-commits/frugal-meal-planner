@@ -771,6 +771,8 @@ function getTotalDislikeCount() {
 }
 
 function updateCoreFlowSummary() {
+  const servingsDisplay = document.getElementById('core-servings-display');
+  if (servingsDisplay) servingsDisplay.textContent = `${state.servings}人分`;
   const budgetDisplay = document.getElementById('core-budget-display');
   if (budgetDisplay) budgetDisplay.textContent = `¥${Number(state.targetBudget || 0).toLocaleString()} / 週`;
 
@@ -2351,6 +2353,19 @@ function updateSummaryBadge() {
   const weeklyTotalCost = state.weeklyPlan ? calculatePlanTotalCost(state.weeklyPlan) : 0;
   const target = state.targetBudget;
   const diff = weeklyTotalCost - target;
+  const balance = document.getElementById('budget-balance');
+  if (balance) balance.textContent = `${diff > 0 ? '今週の予算超過' : '今週の予算残り'} ¥${Math.abs(diff).toLocaleString()}`;
+  const estimate = document.getElementById('budget-estimate');
+  if (estimate) estimate.textContent = `予算 ¥${target.toLocaleString()} ／ 献立の予定額 ¥${weeklyTotalCost.toLocaleString()}`;
+  const meter = document.getElementById('budget-meter');
+  const usage = target > 0 ? Math.min(100, Math.max(0, weeklyTotalCost / target * 100)) : 0;
+  if (meter) {
+    meter.setAttribute('aria-valuenow', String(Math.round(usage)));
+    meter.setAttribute('aria-valuetext', `予算 ${target.toLocaleString()}円、献立の予定額 ${weeklyTotalCost.toLocaleString()}円${diff > 0 ? '、予算超過' : ''}`);
+    meter.classList.toggle('is-over-budget', diff > 0);
+  }
+  const meterFill = document.getElementById('budget-meter-fill');
+  if (meterFill) meterFill.style.width = `${usage}%`;
 
   const costEl = document.getElementById('badge-total-cost');
   if (costEl) costEl.textContent = `¥${weeklyTotalCost.toLocaleString()}`;
@@ -4366,6 +4381,28 @@ window.openDetailModal = function(recipeId) {
       <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">${recipe.description}</p>
     </div>
 
+    <!-- 材料一覧（2列カードで分量が一目瞭然） -->
+    <details open class="recipe-detail-materials p-4 sm:p-6 border-b border-slate-100 bg-slate-50/60">
+      <summary class="font-black text-slate-800 text-sm mb-2.5 cursor-pointer">
+        <span class="flex items-center gap-1.5">
+          <span>🥕</span>
+          <span>材料（${state.servings}人分）</span>
+        </span>
+        <span class="text-[11px] font-normal text-slate-500">※調味料はお好みで調整</span>
+      </summary>
+      <div class="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+        ${recipe.ingredients.map(ing => {
+          const scaledAmount = ing.amount * state.servings;
+          return `
+            <div class="flex items-center justify-between py-1.5 px-2.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
+              <span class="text-slate-800 font-bold truncate">${ing.name}</span>
+              <span class="text-teal-700 font-black shrink-0 ml-1">${formatAmount(scaledAmount, ing.unit)}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </details>
+
     <!-- 作り方手順（ステップごとの見出しカード・調理中でも見やすい大文字） -->
     <div class="recipe-detail-method p-4 sm:p-6">
       <h4 class="font-black text-slate-800 text-sm mb-3 flex items-center gap-1.5">
@@ -4417,27 +4454,6 @@ window.openDetailModal = function(recipeId) {
         </details>
       </div>
     </div>
-    <!-- 材料一覧（2列カードで分量が一目瞭然） -->
-    <details class="recipe-detail-materials p-4 sm:p-6 border-b border-slate-100 bg-slate-50/60">
-      <summary class="font-black text-slate-800 text-sm mb-2.5 cursor-pointer">
-        <span class="flex items-center gap-1.5">
-          <span>🥕</span>
-          <span>材料（${state.servings}人分）</span>
-        </span>
-        <span class="text-[11px] font-normal text-slate-500">※調味料はお好みで調整</span>
-      </summary>
-      <div class="grid grid-cols-2 gap-2 text-xs sm:text-sm">
-        ${recipe.ingredients.map(ing => {
-          const scaledAmount = ing.amount * state.servings;
-          return `
-            <div class="flex items-center justify-between py-1.5 px-2.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
-              <span class="text-slate-800 font-bold truncate">${ing.name}</span>
-              <span class="text-teal-700 font-black shrink-0 ml-1">${formatAmount(scaledAmount, ing.unit)}</span>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    </details>
 
   `;
 

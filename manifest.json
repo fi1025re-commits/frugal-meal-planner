@@ -6,8 +6,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f0f7ff",
-  "theme_color": "#0ea5e9",
+  "background_color": "#FFFDF8",
+  "theme_color": "#FFFDF8",
   "lang": "ja",
   "categories": ["lifestyle", "food", "utilities"],
   "icons": [
@@ -31,3 +31,4 @@
     }
   ]
 }
+
