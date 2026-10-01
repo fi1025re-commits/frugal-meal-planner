@@ -838,18 +838,38 @@ window.goToAppTab = function(tab) {
 };
 
 function setupEventListeners() {
-  document.querySelectorAll('[data-tab-target]').forEach(button => {
+  const mainTabs = Array.from(document.querySelectorAll('#main-tab-nav [role="tab"]'));
+  mainTabs.forEach(button => {
     button.addEventListener('click', (e) => {
+      if (button.getAttribute('aria-disabled') === 'true') return;
       const target = e.currentTarget.getAttribute('data-tab-target');
       state.activeTab = target;
       renderTabs();
       renderActiveTab(false);
-      // スマホまたはスクロール時にタブ上端へスムーズにスクロール
-      const tabNav = document.getElementById('main-tab-nav');
-      if (tabNav && window.scrollY > tabNav.offsetTop) {
-        window.scrollTo({ top: tabNav.offsetTop, behavior: 'smooth' });
-      }
     });
+    button.addEventListener('keydown', (e) => {
+      const enabledTabs = mainTabs.filter(tab => tab.getAttribute('aria-disabled') !== 'true');
+      const index = enabledTabs.indexOf(button);
+      if (index < 0) return;
+      let nextIndex;
+      if (e.key === 'ArrowRight') nextIndex = (index + 1) % enabledTabs.length;
+      else if (e.key === 'ArrowLeft') nextIndex = (index - 1 + enabledTabs.length) % enabledTabs.length;
+      else if (e.key === 'Home') nextIndex = 0;
+      else if (e.key === 'End') nextIndex = enabledTabs.length - 1;
+      else return; // Enter / Space は button の標準 click で選択する。
+      e.preventDefault();
+      mainTabs.forEach(tab => { tab.tabIndex = -1; });
+      const nextTab = enabledTabs[nextIndex];
+      nextTab.tabIndex = 0;
+      nextTab.focus({ preventScroll: true });
+    });
+  });
+  document.querySelector('#main-tab-nav [role="tablist"]').addEventListener('focusout', (e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      mainTabs.forEach(tab => {
+        tab.tabIndex = tab.getAttribute('aria-selected') === 'true' ? 0 : -1;
+      });
+    }
   });
 
   const servingsSelect = document.getElementById('servings-select');
@@ -2310,22 +2330,20 @@ function updateBudgetControls() {
 }
 
 function renderTabs() {
+  // Keep the document tall enough to avoid scroll clamping when a shorter panel opens.
+  const main = document.querySelector('main');
+  if (main) {
+    main.style.minHeight = `${Math.max(window.innerHeight, main.getBoundingClientRect().height)}px`;
+  }
   document.querySelectorAll('[data-tab-target]').forEach(btn => {
     const tabId = btn.getAttribute('data-tab-target');
     const isActive = tabId === state.activeTab;
-    if (isActive) {
-      btn.className = 'tab-btn active flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-4 font-black rounded-2xl text-xs sm:text-sm transition-all';
-    } else {
-      btn.className = 'tab-btn flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 sm:px-4 font-bold rounded-2xl text-xs sm:text-sm transition-all';
-    }
-  });
-
-  document.querySelectorAll('.tab-content').forEach(content => {
-    if (content.id === `tab-${state.activeTab}`) {
-      content.classList.remove('hidden');
-    } else {
-      content.classList.add('hidden');
-    }
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', String(isActive));
+    btn.tabIndex = isActive ? 0 : -1;
+    const panel = document.getElementById(btn.getAttribute('aria-controls'));
+    panel.hidden = !isActive;
+    panel.classList.toggle('hidden', !isActive);
   });
 }
 
@@ -2616,12 +2634,11 @@ function renderWeeklyPlan() {
       // 主菜食材バナー（肉・魚・豆腐が一目でわかる！）
       const proteinInfo = getProteinInfo(mainRecipe);
       const proteinBannerHtml = proteinInfo ? `
-        <div class="mx-2 sm:mx-3 mt-1.5 px-2.5 py-1 rounded-xl border flex items-center justify-between gap-1.5 shadow-2xs ${proteinInfo.badgeBg}">
-          <div class="flex items-center gap-1.5 min-w-0">
-            <span class="text-sm leading-none">${proteinInfo.icon}</span>
-            <span class="text-[11px] font-black shrink-0">主菜食材: ${proteinInfo.label}</span>
-          </div>
-          <span class="text-[11px] font-bold truncate opacity-90 text-right">${getCleanTitle(mainRecipe)}</span>
+        <div class="main-ingredient-banner main-ingredient mx-2 sm:mx-3 mt-1.5 px-2.5 py-1 rounded-xl border shadow-2xs ${proteinInfo.badgeBg}">
+          <span class="main-ingredient-icon text-sm leading-none" aria-hidden="true">${proteinInfo.icon}</span>
+          <span class="main-ingredient-label text-[11px] font-black">主菜食材:</span>
+          <span class="main-ingredient-text text-[11px] font-black">${proteinInfo.label}</span>
+          <span class="main-ingredient-dish text-[11px] font-bold opacity-90 text-right">${getCleanTitle(mainRecipe)}</span>
         </div>
       ` : '';
 
