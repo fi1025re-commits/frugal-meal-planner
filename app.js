@@ -2412,6 +2412,77 @@ const DAY_THEMES = {
   sun: { name: '🌈 日曜日', bg: 'bg-indigo-50/90 text-indigo-950 border-indigo-200' }
 };
 
+function bindSingleStepSwipe(element, onStep, threshold = 48) {
+  if (!element || typeof onStep !== 'function') return;
+
+  let tracking = false;
+  let startX = 0;
+  let startY = 0;
+  let pointerId = null;
+  let locked = false;
+
+  const finish = (x, y, event) => {
+    if (!tracking || locked) return;
+    tracking = false;
+
+    const dx = x - startX;
+    const dy = y - startY;
+    const isHorizontal = Math.abs(dx) >= threshold && Math.abs(dx) > Math.abs(dy) * 1.25;
+    if (!isHorizontal) return;
+
+    locked = true;
+    if (event && event.cancelable) event.preventDefault();
+    onStep(dx < 0 ? 1 : -1);
+
+    window.setTimeout(() => {
+      locked = false;
+    }, 260);
+  };
+
+  element.style.touchAction = 'pan-y';
+
+  if ('PointerEvent' in window) {
+    element.addEventListener('pointerdown', (e) => {
+      if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      tracking = true;
+      pointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      try { element.setPointerCapture(pointerId); } catch (_) {}
+    });
+
+    element.addEventListener('pointerup', (e) => {
+      if (!e.isPrimary || e.pointerId !== pointerId) return;
+      finish(e.clientX, e.clientY, e);
+      try { element.releasePointerCapture(pointerId); } catch (_) {}
+      pointerId = null;
+    }, { passive: false });
+
+    element.addEventListener('pointercancel', () => {
+      tracking = false;
+      pointerId = null;
+    });
+  } else {
+    element.addEventListener('touchstart', (e) => {
+      const t = e.touches && e.touches[0];
+      if (!t) return;
+      tracking = true;
+      startX = t.clientX;
+      startY = t.clientY;
+    }, { passive: true });
+
+    element.addEventListener('touchend', (e) => {
+      const t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+      finish(t.clientX, t.clientY, e);
+    }, { passive: false });
+
+    element.addEventListener('touchcancel', () => {
+      tracking = false;
+    }, { passive: true });
+  }
+}
+
 function setWeeklyViewMode(mode) {
   state.weeklyViewMode = mode;
   try {
@@ -2434,14 +2505,17 @@ function setWeeklyViewMode(mode) {
 window.setWeeklyViewMode = setWeeklyViewMode;
 
 function jumpToSwipeDay(index) {
-  state.activeSwipeDayIndex = Math.max(0, Math.min(DAYS_OF_WEEK.length - 1, index));
-  const slider = document.getElementById('weekly-swipe-slider');
-  const targetCard = document.getElementById(`swipe-card-${DAYS_OF_WEEK[state.activeSwipeDayIndex].id}`);
-  if (slider && targetCard) {
-    const targetLeft = Math.max(0, targetCard.offsetLeft - (slider.clientWidth - targetCard.clientWidth) / 2);
-    slider.scrollTo({ left: targetLeft, behavior: 'smooth' });
+  const nextIndex = Math.max(0, Math.min(DAYS_OF_WEEK.length - 1, index));
+  if (state.activeSwipeDayIndex === nextIndex) {
+    updateSwipeNavIndicators();
+    return;
   }
-  updateSwipeNavIndicators();
+  state.activeSwipeDayIndex = nextIndex;
+  if (state.weeklyViewMode === 'swipe') {
+    renderWeeklyPlan();
+  } else {
+    updateSwipeNavIndicators();
+  }
 }
 window.jumpToSwipeDay = jumpToSwipeDay;
 
@@ -2504,8 +2578,9 @@ function renderWeeklyPlan() {
     container.innerHTML = '';
     const isSwipeMode = state.weeklyViewMode === 'swipe';
 
-    // カードHTMLを生成
-    const cardHtmlList = DAYS_OF_WEEK.map((day, idx) => {
+    // スワイプ表示は現在曜日1枚だけ描画。7日一覧のときだけ7枚描画する。
+    const cardDays = isSwipeMode ? [DAYS_OF_WEEK[state.activeSwipeDayIndex] || DAYS_OF_WEEK[0]] : DAYS_OF_WEEK;
+    const cardHtmlList = cardDays.map((day, idx) => {
       let dayData = state.weeklyPlan[day.id];
       if (!dayData) {
         dayData = { main: 'main_01', side: 'side_01', soup: 'soup_01' };
@@ -2553,7 +2628,7 @@ function renderWeeklyPlan() {
       return `
         <div id="swipe-card-${day.id}" class="rounded-2xl border transition-all overflow-hidden bg-white shadow-2xs flex flex-col ${
           isCooked ? 'border-emerald-300 ring-2 ring-emerald-200' : 'border-sky-100/90 hover:border-sky-200'
-        } ${isSwipeMode ? 'shrink-0 w-full max-w-md mx-auto snap-center' : ''}">
+        } ${isSwipeMode ? 'shrink-0 w-full max-w-md mx-auto' : ''}">
           <!-- 曜日ヘッダー（縦幅スリム設計） -->
           <div class="px-3 py-1.5 sm:px-4 sm:py-2 border-b border-sky-100 flex items-center justify-between flex-wrap gap-1.5 ${dayBg}">
             <div class="flex items-center gap-1.5 flex-wrap min-w-0">
@@ -2641,38 +2716,12 @@ function renderWeeklyPlan() {
         </div>
       `;
 
-      // スワイプ時のスクロール位置連動リスナー
+      // 1ジェスチャー = 1曜日。慣性スクロールは使わない。
       const slider = document.getElementById('weekly-swipe-slider');
       if (slider) {
-        let scrollTimeout;
-        slider.addEventListener('scroll', () => {
-          clearTimeout(scrollTimeout);
-          scrollTimeout = setTimeout(() => {
-            const sliderCenter = slider.scrollLeft + slider.offsetWidth / 2;
-            let closestIdx = 0;
-            let closestDist = Infinity;
-            DAYS_OF_WEEK.forEach((d, idx) => {
-              const card = document.getElementById(`swipe-card-${d.id}`);
-              if (card) {
-                const cardCenter = card.offsetLeft + card.offsetWidth / 2;
-                const dist = Math.abs(cardCenter - sliderCenter);
-                if (dist < closestDist) {
-                  closestDist = dist;
-                  closestIdx = idx;
-                }
-              }
-            });
-            if (state.activeSwipeDayIndex !== closestIdx) {
-              state.activeSwipeDayIndex = closestIdx;
-              updateSwipeNavIndicators();
-            }
-          }, 80);
-        }, { passive: true });
-
-        // 初期カード位置へスクロール
-        setTimeout(() => {
-          jumpToSwipeDay(state.activeSwipeDayIndex);
-        }, 50);
+        bindSingleStepSwipe(slider, (direction) => {
+          swipeWeeklyDay(direction);
+        }, 44);
       }
     } else {
       // 7日分全表示モード（グリッドレイアウト）
@@ -3440,12 +3489,15 @@ function setRecipeViewMode(mode) {
 window.setRecipeViewMode = setRecipeViewMode;
 
 function jumpToRecipeSwipeDay(index) {
-  state.activeRecipeSwipeDayIndex = Math.max(0, Math.min(DAYS_OF_WEEK.length - 1, index));
-  const slider = document.getElementById('recipe-swipe-slider');
-  const targetCard = document.getElementById(`recipe-swipe-card-${DAYS_OF_WEEK[state.activeRecipeSwipeDayIndex].id}`);
-  if (slider && targetCard) {
-    targetCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  const nextIndex = Math.max(0, Math.min(DAYS_OF_WEEK.length - 1, index));
+  state.activeRecipeSwipeDayIndex = nextIndex;
+
+  if (state.recipeBookMode === 'weekly' && state.recipeViewMode === 'swipe') {
+    document.querySelectorAll('.recipe-day-swipe-card').forEach((card, idx) => {
+      card.classList.toggle('hidden', idx !== nextIndex);
+    });
   }
+
   updateRecipeSwipeNavIndicators();
 }
 window.jumpToRecipeSwipeDay = jumpToRecipeSwipeDay;
@@ -3502,13 +3554,6 @@ function setRecipeDayFilter(dayId) {
   });
 
   renderRecipeBook();
-
-  // スワイプモードなら選んだ曜日にスムーズジャンプ
-  if (state.recipeViewMode === 'swipe' && dayId !== 'all') {
-    setTimeout(() => {
-      jumpToRecipeSwipeDay(state.activeRecipeSwipeDayIndex);
-    }, 50);
-  }
 }
 window.setRecipeDayFilter = setRecipeDayFilter;
 
@@ -3816,8 +3861,8 @@ function renderRecipeBook() {
       const proteinInfo = getProteinInfo(mainRecipe) || { icon: '🍽️', label: '主菜', badgeBg: 'bg-amber-100 text-amber-900 border-amber-300' };
 
       return `
-        <div id="recipe-swipe-card-${day.id}" class="rounded-2xl border ${theme.border} bg-white overflow-hidden shadow-2xs transition-all w-full min-w-0 flex flex-col ${
-          isSwipeMode ? 'shrink-0 w-full max-w-md mx-auto snap-center' : ''
+        <div id="recipe-swipe-card-${day.id}" class="recipe-day-swipe-card rounded-2xl border ${theme.border} bg-white overflow-hidden shadow-2xs transition-all w-full min-w-0 flex flex-col ${
+          isSwipeMode ? ('w-full max-w-md mx-auto ' + (idx === state.activeRecipeSwipeDayIndex ? '' : 'hidden')) : ''
         }">
           <!-- 曜日ヘッダー -->
           <div class="p-2.5 sm:p-3 flex items-center justify-between gap-2 border-b border-slate-100 ${theme.activeHeader}">
@@ -3885,65 +3930,31 @@ function renderRecipeBook() {
             <i data-lucide="chevron-right" class="w-4 h-4 sm:w-5 sm:h-5"></i>
           </button>
 
-          <div id="recipe-swipe-slider" class="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar py-0.5 px-0.5">
+          <div id="recipe-swipe-slider" class="flex overflow-x-hidden no-scrollbar py-0.5 px-0.5 touch-pan-y">
             ${dayCardsHtml.join('')}
           </div>
         </div>
       `;
 
-      // 誤操作防止：明確な横スワイプ（70px以上）の時だけ1日移動。
-      // 縦スクロールや軽い指ずれでは反応しない。
-      setTimeout(() => {
-        const slider = document.getElementById('recipe-swipe-slider');
-        if (slider) {
-          const beginSwipe = (x, y) => {
-            state.recipeSwipeStartX = x;
-            state.recipeSwipeStartY = y;
-            state.recipeSwipeTracking = true;
-          };
-
-          const finishSwipe = (x, y) => {
-            if (!state.recipeSwipeTracking) return;
-            state.recipeSwipeTracking = false;
-
-            const dx = x - state.recipeSwipeStartX;
-            const dy = y - state.recipeSwipeStartY;
-            const horizontalEnough = Math.abs(dx) >= 70;
-            const clearlyHorizontal = Math.abs(dx) > Math.abs(dy) * 1.35;
-
-            if (!horizontalEnough || !clearlyHorizontal) return;
-            swipeRecipeDay(dx < 0 ? 1 : -1);
-          };
-
-          slider.addEventListener('touchstart', (e) => {
-            const t = e.touches && e.touches[0];
-            if (t) beginSwipe(t.clientX, t.clientY);
-          }, { passive: true });
-
-          slider.addEventListener('touchend', (e) => {
-            const t = e.changedTouches && e.changedTouches[0];
-            if (t) finishSwipe(t.clientX, t.clientY);
-          }, { passive: true });
-
-          slider.addEventListener('pointerdown', (e) => {
-            if (e.pointerType === 'mouse') return;
-            beginSwipe(e.clientX, e.clientY);
-          }, { passive: true });
-
-          slider.addEventListener('pointerup', (e) => {
-            if (e.pointerType === 'mouse') return;
-            finishSwipe(e.clientX, e.clientY);
-          }, { passive: true });
-
-          jumpToRecipeSwipeDay(state.activeRecipeSwipeDayIndex);
-        }
-      }, 50);
+      // Gesture binding runs after the HTML is injected below.
+      state.recipeSwipeNeedsBinding = true;
     } else {
       html += `<div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${dayCardsHtml.join('')}</div>`;
     }
   }
 
   container.innerHTML = html;
+
+  if (state.recipeSwipeNeedsBinding) {
+    state.recipeSwipeNeedsBinding = false;
+    const slider = document.getElementById('recipe-swipe-slider');
+    if (slider) {
+      bindSingleStepSwipe(slider, (direction) => {
+        swipeRecipeDay(direction);
+      }, 44);
+    }
+  }
+
   safeCreateIcons();
 }
 

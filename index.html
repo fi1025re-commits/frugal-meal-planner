@@ -499,6 +499,67 @@
       .core-flow-card{min-height:0 !important}
       .core-flow-action{min-width:72px !important}
     }
+
+    /* ===== First viewport: controls above, menu visible immediately ===== */
+    @media(max-width:720px){
+      .home-header-inner{padding-top:7px !important;padding-bottom:6px !important}
+      .home-brand-mark{width:32px !important;height:32px !important;font-size:16px !important}
+      .home-brand h1{font-size:13px !important}
+      .home-header-actions{gap:4px !important}
+      .home-icon-btn{min-height:32px !important;padding:0 7px !important}
+
+      .core-flow-wrap{padding:7px 8px 5px !important}
+      .core-flow-head{margin:0 0 5px !important}
+      .core-flow-head .core-flow-kicker{display:none !important}
+      .core-flow-head h2{font-size:12px !important;letter-spacing:-.02em !important}
+      .core-flow-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+        gap:5px !important;
+      }
+      .core-flow-card{
+        display:flex !important;
+        flex-direction:column !important;
+        min-height:86px !important;
+        padding:9px 7px 7px 9px !important;
+        border-radius:13px !important;
+        box-shadow:2px 2px 0 #2d2925 !important;
+        gap:3px !important;
+      }
+      .core-flow-card::before{width:4px !important}
+      .core-flow-index{display:none !important}
+      .core-flow-icon{
+        width:25px !important;height:25px !important;border-radius:8px !important;
+        font-size:12px !important;flex:none !important;
+      }
+      .core-flow-copy{width:100% !important}
+      .core-flow-label{font-size:9px !important;margin:0 !important}
+      .core-flow-copy strong{
+        font-size:10px !important;line-height:1.2 !important;
+        white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;
+      }
+      .core-flow-action{
+        margin-top:auto !important;width:100% !important;min-width:0 !important;min-height:25px !important;
+        padding:0 3px !important;border-radius:7px !important;font-size:9px !important;
+        grid-column:auto !important;grid-row:auto !important;
+      }
+
+      #main-tab-nav{position:sticky !important;top:0 !important}
+      #main-tab-nav>div{padding-left:8px !important;padding-right:8px !important}
+      #main-tab-nav .tab-btn{min-height:36px !important;padding-top:5px !important;padding-bottom:5px !important}
+
+      main{padding-top:5px !important}
+      .weekly-focus-head{
+        padding:8px 10px !important;margin-bottom:5px !important;border-radius:14px !important;
+      }
+      .weekly-focus-head h2{font-size:15px !important}
+      .weekly-primary-btn{min-height:34px !important;padding:0 9px !important;font-size:10px !important}
+      .weekly-subtools{margin-bottom:5px !important}
+      .weekly-view-switch button{min-height:27px !important;font-size:9px !important}
+      .weekly-print-btn{min-height:29px !important;width:31px !important}
+
+      #weekly-plan-container .grid-cols-7{gap:3px !important}
+      #weekly-plan-container [id^="swipe-day-tab-"]{padding-top:3px !important;padding-bottom:3px !important}
+    }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col antialiased selection:bg-sky-200 selection:text-sky-900">
@@ -1436,14 +1497,14 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20261001_0900"></script>
-  <script src="app.js?v=20261001_0900"></script>
+  <script src="recipes.js?v=20261001_0915"></script>
+  <script src="app.js?v=20261001_0915"></script>
 
   <!-- PWA Service Worker 登録 ＆ 自動アップデート検知 -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261001_0900', { updateViaCache: 'none' })
+        navigator.serviceWorker.register('./sw.js?v=20261001_0915', { updateViaCache: 'none' })
           .then((reg) => {
             // 起動時にサーバーへ即座に更新チェック
             reg.update();
