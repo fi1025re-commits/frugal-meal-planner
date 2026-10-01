@@ -3490,16 +3490,15 @@ window.setRecipeViewMode = setRecipeViewMode;
 
 function jumpToRecipeSwipeDay(index) {
   const nextIndex = Math.max(0, Math.min(DAYS_OF_WEEK.length - 1, index));
-  if (state.activeRecipeSwipeDayIndex === nextIndex) {
-    updateRecipeSwipeNavIndicators();
-    return;
-  }
   state.activeRecipeSwipeDayIndex = nextIndex;
+
   if (state.recipeBookMode === 'weekly' && state.recipeViewMode === 'swipe') {
-    renderRecipeBook();
-  } else {
-    updateRecipeSwipeNavIndicators();
+    document.querySelectorAll('.recipe-day-swipe-card').forEach((card, idx) => {
+      card.classList.toggle('hidden', idx !== nextIndex);
+    });
   }
+
+  updateRecipeSwipeNavIndicators();
 }
 window.jumpToRecipeSwipeDay = jumpToRecipeSwipeDay;
 
@@ -3834,9 +3833,7 @@ function renderRecipeBook() {
     };
 
     const isSwipeMode = state.recipeViewMode === 'swipe';
-    const daysForDisplay = isSwipeMode
-      ? [DAYS_OF_WEEK[state.activeRecipeSwipeDayIndex] || DAYS_OF_WEEK[0]]
-      : daysToShow;
+    const daysForDisplay = isSwipeMode ? DAYS_OF_WEEK : daysToShow;
 
     const dayCardsHtml = daysForDisplay.map((day, idx) => {
       const dayData = state.weeklyPlan[day.id];
@@ -3864,8 +3861,8 @@ function renderRecipeBook() {
       const proteinInfo = getProteinInfo(mainRecipe) || { icon: '🍽️', label: '主菜', badgeBg: 'bg-amber-100 text-amber-900 border-amber-300' };
 
       return `
-        <div id="recipe-swipe-card-${day.id}" class="rounded-2xl border ${theme.border} bg-white overflow-hidden shadow-2xs transition-all w-full min-w-0 flex flex-col ${
-          isSwipeMode ? 'shrink-0 w-full max-w-md mx-auto snap-center' : ''
+        <div id="recipe-swipe-card-${day.id}" class="recipe-day-swipe-card rounded-2xl border ${theme.border} bg-white overflow-hidden shadow-2xs transition-all w-full min-w-0 flex flex-col ${
+          isSwipeMode ? ('w-full max-w-md mx-auto ' + (idx === state.activeRecipeSwipeDayIndex ? '' : 'hidden')) : ''
         }">
           <!-- 曜日ヘッダー -->
           <div class="p-2.5 sm:p-3 flex items-center justify-between gap-2 border-b border-slate-100 ${theme.activeHeader}">
@@ -3939,20 +3936,25 @@ function renderRecipeBook() {
         </div>
       `;
 
-      setTimeout(() => {
-        const slider = document.getElementById('recipe-swipe-slider');
-        if (slider) {
-          bindSingleStepSwipe(slider, (direction) => {
-            swipeRecipeDay(direction);
-          }, 44);
-        }
-      }, 0);
+      // Gesture binding runs after the HTML is injected below.
+      state.recipeSwipeNeedsBinding = true;
     } else {
       html += `<div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${dayCardsHtml.join('')}</div>`;
     }
   }
 
   container.innerHTML = html;
+
+  if (state.recipeSwipeNeedsBinding) {
+    state.recipeSwipeNeedsBinding = false;
+    const slider = document.getElementById('recipe-swipe-slider');
+    if (slider) {
+      bindSingleStepSwipe(slider, (direction) => {
+        swipeRecipeDay(direction);
+      }, 44);
+    }
+  }
+
   safeCreateIcons();
 }
 
