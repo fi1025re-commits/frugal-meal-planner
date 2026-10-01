@@ -4337,7 +4337,7 @@ window.openDetailModal = function(recipeId) {
   else if (recipe.category === 'side') categoryBadgeClass = 'bg-gradient-to-r from-lime-500 to-emerald-500 text-white';
 
   content.innerHTML = `
-    <div class="p-4 sm:p-6 border-b border-sky-100 bg-white">
+    <div class="recipe-detail-header p-4 sm:p-6 border-b border-sky-100 bg-white">
       <div class="flex items-center gap-2 mb-2 flex-wrap">
         <span class="text-xs font-black px-2.5 py-0.5 rounded-lg shadow-2xs ${categoryBadgeClass}">
           ${categoryLabels[recipe.category]}
@@ -4366,40 +4366,18 @@ window.openDetailModal = function(recipeId) {
       <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">${recipe.description}</p>
     </div>
 
-    <!-- 材料一覧（2列カードで分量が一目瞭然） -->
-    <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/60">
-      <h4 class="font-black text-slate-800 text-sm mb-2.5 flex items-center justify-between">
-        <span class="flex items-center gap-1.5">
-          <span>🥕</span>
-          <span>材料（${state.servings}人分）</span>
-        </span>
-        <span class="text-[11px] font-normal text-slate-500">※調味料はお好みで調整</span>
-      </h4>
-      <div class="grid grid-cols-2 gap-2 text-xs sm:text-sm">
-        ${recipe.ingredients.map(ing => {
-          const scaledAmount = ing.amount * state.servings;
-          return `
-            <div class="flex items-center justify-between py-1.5 px-2.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
-              <span class="text-slate-800 font-bold truncate">${ing.name}</span>
-              <span class="text-teal-700 font-black shrink-0 ml-1">${formatAmount(scaledAmount, ing.unit)}</span>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    </div>
-
     <!-- 作り方手順（ステップごとの見出しカード・調理中でも見やすい大文字） -->
-    <div class="p-4 sm:p-6">
+    <div class="recipe-detail-method p-4 sm:p-6">
       <h4 class="font-black text-slate-800 text-sm mb-3 flex items-center gap-1.5">
         <span>🍳</span>
-        <span>作り方手順（かんたん3ステップ）</span>
+        <span>作り方</span>
       </h4>
-      <div class="space-y-2.5 mb-4">
+      <div class="recipe-detail-steps space-y-2.5 mb-4">
         ${(recipe.instructions && recipe.instructions.length > 0 ? recipe.instructions : ['材料を切って下ごしらえをします。', 'フライパンや鍋で加熱調理します。', '調味料で味を調えて完成です。']).map((step, idx) => {
           const stepTitles = ['下ごしらえ・切る', '加熱・炒める', '味付け・仕上げ'];
           const title = stepTitles[idx] || `手順 ${idx + 1}`;
           return `
-            <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-2xs">
+            <div class="recipe-detail-step p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-2xs">
               <div class="flex items-center gap-2 mb-1.5">
                 <span class="px-2 py-0.5 rounded-lg bg-emerald-600 text-white font-black text-[11px]">
                   STEP ${idx + 1}
@@ -4439,6 +4417,28 @@ window.openDetailModal = function(recipeId) {
         </details>
       </div>
     </div>
+    <!-- 材料一覧（2列カードで分量が一目瞭然） -->
+    <details class="recipe-detail-materials p-4 sm:p-6 border-b border-slate-100 bg-slate-50/60">
+      <summary class="font-black text-slate-800 text-sm mb-2.5 cursor-pointer">
+        <span class="flex items-center gap-1.5">
+          <span>🥕</span>
+          <span>材料（${state.servings}人分）</span>
+        </span>
+        <span class="text-[11px] font-normal text-slate-500">※調味料はお好みで調整</span>
+      </summary>
+      <div class="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+        ${recipe.ingredients.map(ing => {
+          const scaledAmount = ing.amount * state.servings;
+          return `
+            <div class="flex items-center justify-between py-1.5 px-2.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
+              <span class="text-slate-800 font-bold truncate">${ing.name}</span>
+              <span class="text-teal-700 font-black shrink-0 ml-1">${formatAmount(scaledAmount, ing.unit)}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </details>
+
   `;
 
   modal.classList.remove('hidden');
