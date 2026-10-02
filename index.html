@@ -21,23 +21,22 @@
   <meta name="theme-color" content="#FFFDF8">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="節約献立">
+  <meta name="apple-mobile-web-app-title" content="週ぎめごはん">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-  <!-- ファビコン (SVG Data URI) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍳</text></svg>">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
 
   <!-- SEO メタタグ -->
-  <title>食費節約献立＆買い物リスト作成｜子育て家庭向け・1〜7人対応・完全無料・子供の好き嫌い＆予算追従</title>
-  <meta name="description" content="子育て家庭（1〜7人対応）に特化した、1週間分の節約献立と買い物リストを自動作成する完全無料ツール。子供の苦手食材除外、予算ピッタリ生成、お肉や味付けの偏り防止、スーパー売り場別の買い物リスト自動合算＆家族共有に対応。">
-  <meta name="keywords" content="食費節約, 献立, 買い物リスト, 1週間献立, 節約レシピ, 子供の好き嫌い, まとめ買い, 家族共有">
+  <title>週ぎめごはん｜予算ぴったりの1週間献立と買い物リスト</title>
+  <meta name="description" content="子育て家庭（1〜7人対応）に特化した、1週間分の節約献立と買い物リストを自動作成する完全無料ツール。予算ぴったりの献立作成、子供の苦手食材除外、レトルト・時短お助けメニュー、スーパー売り場別の買い物リスト自動合算＆家族共有に対応。">
+  <meta name="keywords" content="週ぎめごはん, 食費節約, 献立, 買い物リスト, 1週間献立, 節約レシピ, 子供の好き嫌い, まとめ買い, 家族共有">
   <meta name="author" content="AOBA">
 
   <!-- SNSシェア・OGPタグ (X/Twitter, LINE, Facebook) -->
-  <meta property="og:title" content="食費節約献立＆買い物リスト作成マスター｜子育て家庭向け">
+  <meta property="og:title" content="週ぎめごはん｜予算ぴったりの1週間献立と買い物リスト">
   <meta property="og:description" content="完全無料！1週間の予算に合わせて、子供が喜ぶ偏らない節約献立＆売り場別買い物リストを一瞬で自動作成！夫婦・家族間共有対応。">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="食費節約献立＆買い出しマスター">
+  <meta property="og:site_name" content="週ぎめごはん">
   <meta property="og:url" content="https://setsuyaku-recipe.github.io/">
   <meta property="og:image" content="https://setsuyaku-recipe.github.io/ogp.png">
   <meta property="og:image:width" content="1200">
@@ -656,10 +655,12 @@
   <header class="home-header">
     <div class="home-header-inner">
       <div class="home-brand">
-        <div class="home-brand-mark">🍳</div>
+        <div class="home-brand-mark overflow-hidden p-0 border border-amber-200 shadow-xs">
+          <img src="icons/icon-192.png" alt="週ぎめごはん" class="w-full h-full object-cover rounded-xl">
+        </div>
         <div>
-          <h1>食費節約レシピ</h1>
-          <p>1週間の献立と買い物を、無理なく節約</p>
+          <h1>週ぎめごはん</h1>
+          <p>予算ぴったりの1週間献立と買い物リスト</p>
         </div>
       </div>
 
@@ -1048,7 +1049,7 @@
       </div>
 
 
-      <p class="font-medium text-slate-500">食費節約献立＆買い出しマスター by AOBA</p>
+      <p class="font-medium text-slate-500">週ぎめごはん by AOBA</p>
       <p class="text-slate-400">© 2026 AOBA. All Rights Reserved. 完全無料・広告掲載対応</p>
     </div>
   </footer>
@@ -1550,14 +1551,14 @@
   </div>
 
   <!-- スクリプト読み込み（スマホのキャッシュ対策クエリ付き） -->
-  <script src="recipes.js?v=20261001_budget_ui"></script>
-  <script src="app.js?v=20261001_budget_ui"></script>
+  <script src="recipes.js?v=20261002_shukime_v9"></script>
+  <script src="app.js?v=20261002_shukime_v9"></script>
 
   <!-- PWA Service Worker 登録 ＆ 自動アップデート検知 -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261001_budget_ui', { updateViaCache: 'none' })
+        navigator.serviceWorker.register('./sw.js?v=20261002_shukime_v9', { updateViaCache: 'none' })
           .then((reg) => {
             // 起動時にサーバーへ即座に更新チェック
             reg.update();

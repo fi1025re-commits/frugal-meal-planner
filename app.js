@@ -94,7 +94,9 @@ const PROTEIN_CONFIG = {
   fish: { icon: '🐟', label: 'お魚料理', badgeBg: 'bg-sky-100 text-sky-900 border-sky-300', dot: 'bg-sky-500' },
   chicken: { icon: '🍗', label: '鶏肉料理', badgeBg: 'bg-amber-100 text-amber-900 border-amber-300', dot: 'bg-amber-500' },
   pork: { icon: '🥩', label: '豚肉料理', badgeBg: 'bg-rose-100 text-rose-900 border-rose-300', dot: 'bg-rose-500' },
+  beef: { icon: '🥩', label: '牛肉料理', badgeBg: 'bg-red-100 text-red-900 border-red-300', dot: 'bg-red-500' },
   mince: { icon: '🥘', label: 'ひき肉料理', badgeBg: 'bg-orange-100 text-orange-900 border-orange-300', dot: 'bg-orange-500' },
+  shrimp: { icon: '🦐', label: 'えび料理', badgeBg: 'bg-pink-100 text-pink-900 border-pink-300', dot: 'bg-pink-500' },
   soy: { icon: '🍳', label: '豆腐・大豆料理', badgeBg: 'bg-emerald-100 text-emerald-900 border-emerald-300', dot: 'bg-emerald-500' },
   other: { icon: '🥗', label: '主菜料理', badgeBg: 'bg-slate-100 text-slate-800 border-slate-300', dot: 'bg-slate-500' }
 };
@@ -104,9 +106,11 @@ function getProteinInfo(recipe) {
   let pType = recipe.proteinType;
   if (!pType) {
     const text = (recipe.title || '') + ' ' + (recipe.description || '');
-    if (/魚|鮭|サバ|ぶり|ツナ|タラ|アジ/i.test(text)) pType = 'fish';
+    if (/えび|海老|エビ/i.test(text)) pType = 'shrimp';
+    else if (/牛|すき焼き|牛丼|ビーフ/i.test(text)) pType = 'beef';
+    else if (/魚|鮭|サバ|ぶり|ツナ|タラ|アジ/i.test(text)) pType = 'fish';
     else if (/鶏|チキン|手羽/i.test(text)) pType = 'chicken';
-    else if (/豚|ポーク/i.test(text)) pType = 'pork';
+    else if (/豚|ポーク|とんかつ|角煮/i.test(text)) pType = 'pork';
     else if (/ひき肉|挽肉|ハンバーグ|つくね|餃子|麻婆/i.test(text)) pType = 'mince';
     else if (/豆腐|厚揚げ|納豆|大豆/i.test(text)) pType = 'soy';
     else pType = 'other';
@@ -597,6 +601,27 @@ function generateRandomWeeklyPlan(showNotify = true) {
     return unrecent.length >= 7 ? unrecent : list;
   };
 
+  // レトルト主菜と自炊時短主菜のカテゴリ別重複防止プール
+  const isRetort = r => r && r.tags && r.tags.includes('レトルト活用');
+  const isQuick = r => {
+    if (!r) return false;
+    const t = parseInt(r.time) || 20;
+    return t <= 15 && !isRetort(r);
+  };
+  const isRegular = r => !isRetort(r);
+
+  const filterSubPoolByHistory = (list, minCount = 1) => {
+    const unrecent = list.filter(r => {
+      if (state.favoriteRecipeIds.includes(r.id)) return true;
+      return !state.historyRecipeIds.includes(r.id);
+    });
+    return unrecent.length >= minCount ? unrecent : list;
+  };
+
+  const poolRetortMains = filterSubPoolByHistory(availableMains.filter(isRetort), 1);
+  const poolQuickMains = filterSubPoolByHistory(availableMains.filter(isQuick), 1);
+  const poolRegularMains = filterSubPoolByHistory(availableMains.filter(isRegular), 5);
+
   let poolMains = filterByHistory(availableMains);
   let poolSides = filterByHistory(availableSides);
   let poolSoups = filterByHistory(availableSoups);
@@ -607,50 +632,67 @@ function generateRandomWeeklyPlan(showNotify = true) {
   let minCostDiff = Infinity;
 
   for (let trial = 0; trial < 100; trial++) {
-    const selectedMains = [];
-    let curMains = shuffle(poolMains);
+    // 週ぎめごはん黄金バランス:
+    // 週1回: レトルト・半調理品お助け主菜 (ラザニエッテ、棒ラーメン、麻婆春雨等)
+    // 週1回: 自炊の超時短主菜 (15分以内・包丁最小限)
+    // 残り5回: 通常の自炊・節約・ごちそう主菜
+    const selectedMainsList = [];
 
-    // お気に入りレシピがある場合、週に1〜2回優先して選出
-    const userFavMains = curMains.filter(r => state.favoriteRecipeIds.includes(r.id));
-    let favInsertedCount = 0;
+    // 1. レトルト主菜から1品選出
+    const shuffledRetorts = shuffle(poolRetortMains.length > 0 ? poolRetortMains : availableMains.filter(isRetort));
+    const chosenRetort = shuffledRetorts[0] || null;
+    if (chosenRetort) selectedMainsList.push(chosenRetort);
 
-    for (let i = 0; i < DAYS_OF_WEEK.length; i++) {
-      const prevMain = selectedMains[i - 1];
-      let candidate = null;
+    // 2. 自炊時短主菜から1品選出 (選んだレトルトと重複しない)
+    const shuffledQuicks = shuffle(poolQuickMains.length > 0 ? poolQuickMains : availableMains.filter(isQuick));
+    const chosenQuick = shuffledQuicks.find(r => !selectedMainsList.some(m => m.id === r.id)) || shuffledQuicks[0] || null;
+    if (chosenQuick) selectedMainsList.push(chosenQuick);
 
-      // お気に入りを優先挿入（週に最大2回まで）
-      if (favInsertedCount < 2 && userFavMains.length > favInsertedCount && Math.random() < 0.6) {
-        const favCandidate = userFavMains.find(r => 
-          r &&
-          !selectedMains.some(m => m && m.id === r.id) &&
-          (!prevMain || r.proteinType !== prevMain.proteinType)
-        );
-        if (favCandidate) {
-          candidate = favCandidate;
-          favInsertedCount++;
+    // 3. 残りを通常主菜(お気に入り含む)から選出
+    const shuffledRegulars = shuffle(poolRegularMains.length >= 5 ? poolRegularMains : availableMains.filter(isRegular));
+    // お気に入りを優先挿入
+    const userFavMains = shuffledRegulars.filter(r => state.favoriteRecipeIds.includes(r.id));
+    let favCount = 0;
+    if (userFavMains.length > 0 && Math.random() < 0.7) {
+      const fav = userFavMains[0];
+      if (!selectedMainsList.some(m => m.id === fav.id)) {
+        selectedMainsList.push(fav);
+        favCount++;
+      }
+    }
+
+    for (const reg of shuffledRegulars) {
+      if (selectedMainsList.length >= DAYS_OF_WEEK.length) break;
+      if (!selectedMainsList.some(m => m.id === reg.id)) {
+        selectedMainsList.push(reg);
+      }
+    }
+
+    // 足りない場合のフォールバック
+    if (selectedMainsList.length < DAYS_OF_WEEK.length) {
+      for (const m of shuffle(availableMains)) {
+        if (selectedMainsList.length >= DAYS_OF_WEEK.length) break;
+        if (!selectedMainsList.some(item => item.id === m.id)) {
+          selectedMainsList.push(m);
         }
       }
-
-      if (!candidate) {
-        candidate = curMains.find(r => {
-          if (!r) return false;
-          const isDifferentProtein = !prevMain || r.proteinType !== prevMain.proteinType;
-          const isNotUsed = !selectedMains.some(m => m && m.id === r.id);
-          return isDifferentProtein && isNotUsed;
-        });
-      }
-
-      if (!candidate) {
-        candidate = curMains.find(r => r && !selectedMains.some(m => m && m.id === r.id));
-      }
-      if (!candidate && curMains.length > 0) {
-        candidate = curMains[i % curMains.length];
-      }
-      if (!candidate) {
-        candidate = poolMains[0] || RECIPES_DATA.find(r => r && r.category === 'main');
-      }
-      selectedMains.push(candidate);
     }
+
+    // 7品をタンパク質(proteinType)が連続しないよう並べ替え
+    const orderedMains = [];
+    let poolToOrder = shuffle(selectedMainsList);
+
+    for (let i = 0; i < DAYS_OF_WEEK.length; i++) {
+      const prev = orderedMains[i - 1];
+      let cand = poolToOrder.find(r => !prev || r.proteinType !== prev.proteinType);
+      if (!cand) cand = poolToOrder[0];
+      if (cand) {
+        orderedMains.push(cand);
+        poolToOrder = poolToOrder.filter(r => r.id !== cand.id);
+      }
+    }
+
+    const selectedMains = orderedMains;
 
     const shuffledSides = shuffle(poolSides);
     const shuffledSoups = shuffle(poolSoups);
@@ -1344,8 +1386,8 @@ function renderPrintWeeklyCalendar(container) {
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 22px; line-height: 1;">🍳</span>
           <div>
-            <div style="font-size: 15px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">1週間の食費節約献立カレンダー（冷蔵庫用）</div>
-            <div style="font-size: 9px; color: #475569; font-weight: bold;">お肉・お魚・和洋中バランス最適化 ＆ 食材使い回し献立</div>
+            <div style="font-size: 15px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">週ぎめごはん 1週間献立カレンダー（冷蔵庫用）</div>
+            <div style="font-size: 9px; color: #475569; font-weight: bold;">お肉・お魚・和洋中バランス最適化 ＆ 買い物リスト連携献立</div>
           </div>
         </div>
         <div style="text-align: right; line-height: 1.25;">
@@ -1357,7 +1399,7 @@ function renderPrintWeeklyCalendar(container) {
               推定計: 約¥${totalCost.toLocaleString()}（目標: ¥${state.targetBudget.toLocaleString()}）
             </span>
           </div>
-          <div style="font-size: 8px; color: #64748b; margin-top: 2px;">作成日: ${new Date().toLocaleDateString('ja-JP')} ｜ 食費節約レシピまとめ集</div>
+          <div style="font-size: 8px; color: #64748b; margin-top: 2px;">作成日: ${new Date().toLocaleDateString('ja-JP')} ｜ 週ぎめごはん</div>
         </div>
       </div>
 
@@ -1416,7 +1458,7 @@ function renderPrintWeeklyCalendar(container) {
           <strong>💡 冷蔵庫メモ・節約のコツ:</strong> 週末にまとめ買いして下味冷凍すると平日は焼くだけ15分！使い切れなかった端野菜はお味噌汁へ。
         </div>
         <div style="color: #64748b; font-weight: bold; shrink-0; margin-left: 8px;">
-          食費節約レシピまとめ集
+          週ぎめごはん
         </div>
       </div>
 
@@ -1514,7 +1556,7 @@ function renderPrintShoppingList(container) {
       <!-- フッター -->
       <div style="border-top: 1px dashed #94a3b8; padding-top: 2px; display: flex; justify-content: space-between; font-size: 8px; color: #64748b;">
         <div>※カゴに入れたらチェックをつけて買い忘れを防止しましょう。冷蔵庫の在庫を確認して購入してください。</div>
-        <div>食費節約レシピまとめ集</div>
+        <div>週ぎめごはん</div>
       </div>
 
     </div>
@@ -2433,7 +2475,7 @@ function updatePreferenceBadge() {
 }
 
 const CUISINE_LABELS = { japanese: '和風', western: '洋風', chinese: '中華' };
-const PROTEIN_ICONS = { chicken: '🐔 鶏肉', pork: '🐷 豚肉', mince: '🥩 ひき肉', fish: '🐟 お魚', soy: '🌱 大豆・その他' };
+const PROTEIN_ICONS = { chicken: '🐔 鶏肉', pork: '🐷 豚肉', beef: '🥩 牛肉', mince: '🥘 ひき肉', shrimp: '🦐 えび', fish: '🐟 お魚', soy: '🌱 大豆・その他' };
 
 const DAY_THEMES = {
   mon: { name: '💧 月曜日', bg: 'bg-sky-50/90 text-sky-950 border-sky-200' },
@@ -3479,7 +3521,7 @@ function generateShoppingListText() {
     text += `\n※家にある基本調味料（しょうゆ、酒、油等）はリストから除外しています🧂\n`;
   }
 
-  text += `\n※目標予算: ¥${state.targetBudget.toLocaleString()} / 冷蔵庫の在庫を確認してご購入ください✨\n\n🍳 節約献立＆買い物リスト作成:\nhttps://setsuyaku-recipe.github.io/`;
+  text += `\n※目標予算: ¥${state.targetBudget.toLocaleString()} / 冷蔵庫の在庫を確認してご購入ください✨\n\n🍳 週ぎめごはん｜1週間献立＆買い物リスト:\nhttps://setsuyaku-recipe.github.io/`;
   return text;
 }
 
